@@ -1,0 +1,2 @@
+PlayerHandler.Update - // out the lines of code becauase was causing 20% of my alloc memory.
+Add instancing

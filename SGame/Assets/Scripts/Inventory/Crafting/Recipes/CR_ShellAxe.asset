@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 639b23ef11c481546bb658d53a0dbe61, type: 3}
+  m_Name: CR_ShellAxe
+  m_EditorClassIdentifier: 
+  recipetype: 1
+  result:
+    itemType: 13
+    amount: 1
+    attributes:
+    - attribute: 1
+      value: 24
+    - attribute: 2
+      value: 24
+    - attribute: 4
+      value: 25
+  ingredients:
+  - Ingredients:
+    - item:
+        itemType: 17
+        amount: 3
+        attributes: []
+      changeDescription: 
+  - Ingredients:
+    - item:
+        itemType: 12
+        amount: 4
+        attributes: []
+      changeDescription: 
+  itemDescription: An axe made of shells, sacrificing durability for damage. <\n>
+    25 Damage <\n> 24/24 Durability

@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 639b23ef11c481546bb658d53a0dbe61, type: 3}
+  m_Name: CR_Campfire
+  m_EditorClassIdentifier: 
+  recipetype: 2
+  result:
+    itemType: 2
+    amount: 1
+    attributes:
+    - attribute: 3
+      value: 0
+  ingredients:
+  - Ingredients:
+    - item:
+        itemType: 6
+        amount: 4
+        attributes: []
+      changeDescription: Use beech logs to craft this item
+    - item:
+        itemType: 8
+        amount: 3
+        attributes: []
+      changeDescription: Use oak logs to craft this item
+    - item:
+        itemType: 9
+        amount: 4
+        attributes: []
+      changeDescription: Use spruce logs to craft this item
+    - item:
+        itemType: 7
+        amount: 4
+        attributes: []
+      changeDescription: Use birch logs to craft this item
+    - item:
+        itemType: 5
+        amount: 3
+        attributes: []
+      changeDescription: Use ash logs to craft this item
+  - Ingredients:
+    - item:
+        itemType: 14
+        amount: 4
+        attributes: []
+      changeDescription: Use limestone rocks to craft this item
+    - item:
+        itemType: 15
+        amount: 3
+        attributes: []
+      changeDescription: Use fieldstone rocks to craft this item
+  itemDescription: A small firepit to stave away the darkness

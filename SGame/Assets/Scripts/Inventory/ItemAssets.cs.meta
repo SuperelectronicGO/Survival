@@ -1,0 +1,57 @@
+fileFormatVersion: 2
+guid: a27da79d57a977441bddc1e8bbe5ac12
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - grenade: {instanceID: 0}
+  - blankSprite: {instanceID: 0}
+  - acornFlourSprite: {instanceID: 0}
+  - campfireSprite: {instanceID: 0}
+  - firepitSprite: {instanceID: 0}
+  - rockWallSprite: {instanceID: 0}
+  - stakeWallSprite: {instanceID: 0}
+  - smallRockSprite: {instanceID: 0}
+  - rockSprite: {instanceID: 0}
+  - limestoneSprite: {instanceID: 0}
+  - smallLimestoneSprite: {instanceID: 0}
+  - slateSprite: {instanceID: 0}
+  - smallSlatesprite: {instanceID: 0}
+  - acornSprite: {instanceID: 0}
+  - boneSprite: {instanceID: 0}
+  - oakLogSprite: {instanceID: 0}
+  - ashLogSprite: {instanceID: 0}
+  - beechLogSprite: {instanceID: 0}
+  - pineLogSprite: {instanceID: 0}
+  - spruceLogSprite: {instanceID: 0}
+  - smallBoneSprite: {instanceID: 0}
+  - oakStickSprite: {instanceID: 0}
+  - ashStickSprite: {instanceID: 0}
+  - beechStickSprite: {instanceID: 0}
+  - pineStickSprite: {instanceID: 0}
+  - spruceStickSprite: {instanceID: 0}
+  - oakTwigSprite: {instanceID: 0}
+  - ashTwigSprite: {instanceID: 0}
+  - beechTwigSprite: {instanceID: 0}
+  - pineTwigSprite: {instanceID: 0}
+  - spruceTwigSprite: {instanceID: 0}
+  - driedGrassSprite: {instanceID: 0}
+  - twineSprite: {instanceID: 0}
+  - pointedRockSprite: {instanceID: 0}
+  - sharpRockSprite: {instanceID: 0}
+  - flintSprite: {instanceID: 0}
+  - flintShardSprite: {instanceID: 0}
+  - beechNutsSprite: {instanceID: 0}
+  - pineBudsSprite: {instanceID: 0}
+  - spruceBarkSprite: {instanceID: 0}
+  - pineBarkSprite: {instanceID: 0}
+  - pinePitchSprite: {instanceID: 0}
+  - sprucePitchSprite: {instanceID: 0}
+  - spruceConeSprite: {instanceID: 0}
+  - fireaxeSprite: {instanceID: 0}
+  - grenadeSprite: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
