@@ -129,29 +129,11 @@ public class WorldGen : MonoBehaviour
 
 
 
-        int arraySize = 1025 * 1025;
+        
         mapDemensions = new int2(1024, 1024);
-        float offsetScale = 1.025f;
-        float[,] p = new float[2048,2048];
-
-        float[,] ad = new float[2050, 2050];
-        float[,] a1 = TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSeed, tempScale, octaves, persistance, lacunarity, new int2(0,0));
-        float[,] a2 = TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSeed, tempScale, octaves, persistance, lacunarity, new int2(1023,0));
-       // float[,] a3 = TerrainNoise.GenerateNoiseMap(mapDemensions, tempOffsets, tempScale, octaves, persistance, lacunarity, new int2(0,1024));
-        //float[,] a4 = TerrainNoise.GenerateNoiseMap(mapDemensions, tempOffsets, tempScale, octaves, persistance, lacunarity, new int2(1024,1024));
-
-        for (int y = 0; y < 1024; y++)
-        {
-            for (int x = 0; x < 1024; x++)
-            {
-                //try to 1023
-                ad[x, y] = a1[x, y];
-                ad[x + 1024, y] = a2[x, y];
-              //  ad[x, y + 1024] = a3[x, y];
-                //ad[x + 1024, y + 1024] = a4[x, y];
-            }
-        }
-        a.DrawNoiseMap(ad);
+        
+        
+   
     }
 
     // Update is called once per frame

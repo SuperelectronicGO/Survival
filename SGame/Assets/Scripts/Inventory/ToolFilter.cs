@@ -4,18 +4,13 @@ using UnityEngine;
 
 public class ToolFilter : MonoBehaviour
 {
+   
     public ToolMesh[] tools;
     public Camera camera;
-   
+
+    public int currentDamage = 0;
  
-    private void Start()
-    {
-       
-    }
-    private void Update()
-    {
-       
-    }
+ 
     public void filterTools(Item.ItemType type)
     {
         for(int i=0; i<tools.Length; i++)
@@ -32,6 +27,11 @@ public class ToolFilter : MonoBehaviour
         }
     }
 
+    public void objectInteraction()
+    {
+
+
+    }
     public void collisionExecution()
     {
 
@@ -44,7 +44,14 @@ public class ToolFilter : MonoBehaviour
             if(hitObj.TryGetComponent(out WorldObject worldObj))
             {
                 //Success!
-                Debug.Log("Hit " + hitObj.name);
+
+                //Get the rotation at the hit point to spawn particles
+                Quaternion rotQuat = new Quaternion(Quaternion.FromToRotation(transform.up, hit.normal).x, Quaternion.FromToRotation(transform.up, hit.normal).y, Quaternion.FromToRotation(transform.up, hit.normal).z, Quaternion.FromToRotation(transform.up, hit.normal).w);
+                Instantiate(worldObj.hitParticle, hit.point, Quaternion.FromToRotation(Vector3.forward, hit.normal), worldObj.transform);
+
+
+
+                worldObj.objectCollision();
             }
             else
             {

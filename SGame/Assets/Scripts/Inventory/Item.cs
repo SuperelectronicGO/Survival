@@ -323,7 +323,18 @@ public class Item
         return 0;
       
     }
-
+    public string getAttributeString(ItemAttribute.AttributeName attribute)
+    {
+        foreach(ItemAttribute a in attributes)
+        {
+            if (a.attribute == attribute)
+            {
+                return a.info;
+            }
+        }
+        Debug.LogError("No attribute of string type found");
+        return "Missing";
+    }
     public void setAttributeValue(ItemAttribute.AttributeName attribute, float value, string modifier)
     {
 
@@ -380,10 +391,13 @@ public class ItemAttribute
         Durability,
         MaxDurability,
         EnablesBuilding,
-        Damage
+        Damage,
+        Type
+
     }
     public AttributeName attribute;
     public float value;
+    public string info;
 }
 
 

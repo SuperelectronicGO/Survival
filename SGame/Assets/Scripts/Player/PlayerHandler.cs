@@ -4,26 +4,40 @@ using UnityEngine;
 using UnityEngine.UI;
 public class PlayerHandler : MonoBehaviour
 {
-
+    //Declare a singleton for this script
+    public static PlayerHandler instance;
+    
     [Header ("Inventory Logic")]
+
+    //The inventory component
     public Inventory inventory;
+
+    //Component to manage building
     public BuildingManager buildingManager;
+
+    //Current slot we have equipped
     [HideInInspector] public InventorySlot currentSlot;
+
+    //Gameobject with the animator component
     public GameObject toolAnchor;
+
+    //Component to control the current tool equipped
     [SerializeField] private ToolFilter toolFilter;
+    
+    //Animator for the player
     private Animator anim;
-    private Item currentItem;
-    [Header("Unused")]
-    [SerializeField] private GameObject enviromentUIEffects;
-    [SerializeField] private Text envDisplayText;
+
+    //Current Item we have equipped
+    public Item currentItem;
+
     
 
   
-    // Start is called before the first frame update
-    void Start()
+  
+    void Awake()
     {
         anim = toolAnchor.GetComponent<Animator>();
-        
+        instance = this;
     }
 
     // Update is called once per frame
@@ -68,6 +82,10 @@ public class PlayerHandler : MonoBehaviour
                 return;
         }
       
+    }
+    public void calculateCurrentItemStats()
+    {
+
     }
     public void UseItem(Item item)
     {

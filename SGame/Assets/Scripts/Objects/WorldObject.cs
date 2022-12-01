@@ -4,16 +4,47 @@ using UnityEngine;
 
 public class WorldObject : MonoBehaviour
 {
-    [SerializeField] private float health;
+    public float health;
+    public GameObject hitParticle;
+    public string breakableBy = "Axe";
 
 
-
-  
-    private void OnTriggerEnter(Collider other)
+    private PlayerHandler handler;
+    void Start()
     {
-        if (other.transform.CompareTag("PlayerTool"))
+       
+        handler = PlayerHandler.instance;
+       
+    }
+    
+    public void objectCollision()
+    {
+        //Set values
+        float baseDamage = handler.currentItem.getAttributeValue(ItemAttribute.AttributeName.Damage);
+        float damageMult = handler.currentItem.getAttributeValue(ItemAttribute.AttributeName.Type);
+        string hitItemType = handler.currentItem.getAttributeString(ItemAttribute.AttributeName.Type);
+       
+        //Subtract Health
+        if (breakableBy == hitItemType)
         {
-            Debug.Log("Hit " + name);
+            health -= baseDamage * damageMult;
         }
+        else
+        {
+            health -= baseDamage;
+        }
+        if (health <= 0)
+        {
+            objectDeath();
+        }
+        
+    }
+
+    private void objectDeath()
+    {
+
+
+        //Remove object
+        Destroy(this.gameObject);
     }
 }
