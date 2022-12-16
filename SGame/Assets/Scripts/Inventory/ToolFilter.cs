@@ -47,7 +47,7 @@ public class ToolFilter : MonoBehaviour
 
                 //Get the rotation at the hit point to spawn particles
                 Quaternion rotQuat = new Quaternion(Quaternion.FromToRotation(transform.up, hit.normal).x, Quaternion.FromToRotation(transform.up, hit.normal).y, Quaternion.FromToRotation(transform.up, hit.normal).z, Quaternion.FromToRotation(transform.up, hit.normal).w);
-                Instantiate(worldObj.hitParticle, hit.point, Quaternion.FromToRotation(Vector3.forward, hit.normal), worldObj.transform);
+                Instantiate(worldObj.hitParticle, hit.point, Quaternion.FromToRotation(Vector3.forward, hit.normal));
 
 
 

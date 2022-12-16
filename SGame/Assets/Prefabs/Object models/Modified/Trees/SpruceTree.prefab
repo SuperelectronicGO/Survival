@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 4711182221781160321}
   - component: {fileID: 8560956758358089252}
   - component: {fileID: 5848583383914457838}
+  - component: {fileID: 528490167}
+  - component: {fileID: 528490163}
   m_Layer: 0
   m_Name: SpruceTree
   m_TagString: Untagged
@@ -84,3 +86,53 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!136 &528490167
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5344272927390337851}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 1
+  m_Height: 54
+  m_Direction: 1
+  m_Center: {x: 0, y: 25, z: 0}
+--- !u!114 &528490163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5344272927390337851}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6e1273f8fed2d140904b25789670ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  droppedItems:
+  - itemPrefab: {fileID: 7553894691844785552, guid: 237ce16b8b8ca6d40b5f837ec3d7bf73,
+      type: 3}
+    item:
+      itemType: 9
+      amount: 0
+      attributes: []
+    chance: 1
+    amount: {x: 2, y: 6}
+  - itemPrefab: {fileID: 4468548334666037158, guid: 8de70b4e364ba3841aa19fa58d7eae6b,
+      type: 3}
+    item:
+      itemType: 17
+      amount: 0
+      attributes: []
+    chance: 0.7
+    amount: {x: 1, y: 3}
+  health: 200
+  breakableBy: Axe
+  hitParticle: {fileID: 1559013996545472434, guid: 9191e1ad5b5da264d92cc8b94defde81,
+    type: 3}
+  deathParticle: {fileID: 3207473227392129351, guid: 818fd47d18e5dbf4dbca9dbd71118032,
+    type: 3}
+  effectOffset: {x: 0, y: 6, z: 0}

@@ -7,22 +7,17 @@ using Unity.Collections;
 using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Collections.LowLevel;
-using Unity.Collections.LowLevel.Unsafe;
+
 
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-    public bool h;
-    public MapDisplay a;
-    public MapDisplay b;
-    public MapDisplay c;
-    public MapDisplay d;
-    public bool drawMap;
     
-
+    //Job stuff
     JobHandle generateSplatHandle;
     generateSplat generateSplatJob;
+
+   
     
 
   
@@ -50,25 +45,46 @@ public class WorldGen : MonoBehaviour
 
 
     [Header("Data")]
+    //Component that controls the generation screen
     [SerializeField] private GenerationScreen genScreen;
+    //What seed to use for the world generation
     public int seed;
-    [NonReorderable]
-    public Biome[] biomes;
+    //Mapmagic graph used in generation
     public MapMagic.Core.MapMagicObject M_Graph;
+    //The parent of all terrains
     public Transform terrainTransformParent;
-
-
-
+    //List of all main terrains terrains
     private List<Terrain> terrains = new List<Terrain>();
+    //List of all terrain parents
     private List<Transform> terrainParents = new List<Transform>();
+    //List of all terrainDatas
     private List<TerrainData> tDatas = new List<TerrainData>();
-   
+    //What stage of world generation we are on
     private int orderInWorldGeneration = 0;
+    //Whether or not we started generating the mapmagic component
     private bool startedMapmagicWorldGeneration = false;
+    //Reference to the riverGeneration component
     private RiverGeneration riverGen;
-
-
+    //Int of the demensions of the terrainData maps
     private int2 mapDemensions;
+
+    [Header("Biome Data")]
+   //Scriptable Object with all the biomes and their settings
+    public BiomeStorage biomeStorage;
+    //Array storing what terrain tiles have what biome. Y is the index of the terrain tile and X is a 1 or 0 depending on if the biome exists.
+    public int[,] biomesPerTerrainTile;
+    //Arrays storing the max weights for trees and rocks for each biome, so we don't have to calculate it every tile later
+    public int[] maxTreeWeights;
+    public int[] maxRockWeights;
+   
+
+
+
+
+    //Lists of the temperature and humidity maps
+    List<float[,]> tMapList = new List<float[,]>();
+    List<float[,]> hMapList = new List<float[,]>();
+    List<float[,,]> biomeSplatList = new List<float[,,]>();
     // Start is called before the first frame update
     void Start()
     {
@@ -87,11 +103,13 @@ public class WorldGen : MonoBehaviour
        
 
 
-        TerrainLayer[] layers = new TerrainLayer[biomes.Length];
-        for(int i=0; i<biomes.Length; i++)
-        {
-            layers[i] = biomes[i].biomeLayer;
-        }
+        TerrainLayer[] layers = new TerrainLayer[biomeStorage.biomes.Length];
+      
+            for (int i = 0; i < biomeStorage.biomes.Length; i++)
+            {
+                layers[i] = biomeStorage.biomes[i].biomeLayer;
+            }
+        
         for(int j=0; j<tDatas.Count; j++)
         {
             tDatas[j].terrainLayers = layers;
@@ -147,16 +165,14 @@ public class WorldGen : MonoBehaviour
           
           
         }
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (Input.GetKeyDown(KeyCode.I))
         {
-          
-            d.DrawNoiseMap(tempMap);
+            // textureWorld();
+            StartCoroutine(generateObjects());
+
+
         }
-        if (Input.GetKeyDown(KeyCode.X))
-        {
-         
-            d.DrawNoiseMap(humMap);
-        }
+
         if (Input.GetKeyDown(KeyCode.C))
         {
             int2 mapDemensions = new int2(mapWidth, mapHeight);
@@ -215,16 +231,18 @@ public class WorldGen : MonoBehaviour
    // Method that compares the temperature and humidity maps to a biomes parameters to determine what areas of the map are that biome
    [BurstCompile]
     private struct generateSplat : IJobParallelFor { 
+        //The final list for the biomes splatmap in 1D
         public NativeArray<float> positions;
-        
+        //The temperature map in 1D
         public NativeArray<float> tempPositions;
-       
+       //The humidity map in 1D
         public NativeArray<float> humPositions;
+        //Specific settings for that biome
         public float minHum;
         public float maxHum;
         public float minTemp;
         public float maxTemp;
-
+        
 
         public void Execute(int i)
     {
@@ -234,50 +252,59 @@ public class WorldGen : MonoBehaviour
             float changeMult = 20;
             if(tempPositions[i]>(minTemp-difAmount)&&tempPositions[i]<(maxTemp+difAmount)&& humPositions[i] > (minHum-difAmount) && humPositions[i] < (maxHum+difAmount))
             {
-               
+                //Default to both at 1
                 float tempAmount = 1;
                 float humAmount = 1;
+                //Check if on the verge of min temp
                 if (tempPositions[i] < (minTemp + difAmount))
                 {
                     tempAmount = 1-(((minTemp + difAmount) - tempPositions[i]) * changeMult);
-                   // tempAmount = 0;
-                }else if (tempPositions[i] > (maxTemp - difAmount))
+                }
+                //Check if on the verge of max temp
+                else if (tempPositions[i] > (maxTemp - difAmount))
                 {
                      tempAmount = (maxTemp + difAmount - tempPositions[i]) * changeMult;
-                    //tempAmount = 0;
                 }
 
+                //Check if on the verge of min humidity
                 if (humPositions[i] < (minHum + difAmount))
                 {
                        humAmount = 1 - (((minHum + difAmount) - humPositions[i]) * changeMult);
-                    //humAmount = 1;
                 }
+                //Check if on the verge of max humidity
                 else if (humPositions[i] > (maxHum - difAmount))
                 {
                        humAmount = (maxHum + difAmount - humPositions[i]) * changeMult;
-                  //  humAmount = 1;
                 }
 
-
+                //If in range and not on the verge, set that we do have a biome here
                 if (tempPositions[i] > minTemp + difAmount && tempPositions[i] < maxTemp - difAmount && humPositions[i] > minHum + difAmount && humPositions[i] < maxHum - difAmount)
                 {
-                   positions[i] = 1;
+                    //Update positions map
+                    positions[i] = 1;
+                    
+                    
                 }
                 else
                 {
+                    //If both are not equal (meaning one was on the verge), blend
                     if (tempAmount != 1 && humAmount != 1)
                     {
                         positions[i] = tempAmount * humAmount;
+                        
                     }
                     else
                     {
                         if (tempAmount > humAmount)
                         {
                             positions[i] = humAmount;
+                            
                         }
                         else
                         {
+                            
                             positions[i] = tempAmount;
+                            
                         }
                     }
                     
@@ -286,39 +313,21 @@ public class WorldGen : MonoBehaviour
                 
                 }
 
-                //potentially have to set positions[i]=0;
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
             }
 }
+ 
 
    
     private IEnumerator textureTerrains()
     {
-      
+        //Create a new array to store the biomes per terrain tile, X is biomes and Y is tiles
+        biomesPerTerrainTile = new int[biomeStorage.biomes.Length, terrains.Count];
         //Generate octave offsets
         var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSeed);
         var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSeed);
         float2[] tempOffsets = new float2[octaves];
         float2[] humidOffsets = new float2[octaves];
+        //Give random octave offsets
         for(int i=0; i<octaves; i++)
         {
             //X
@@ -336,9 +345,8 @@ public class WorldGen : MonoBehaviour
 
       
 
-        //List of temperature and humidity maps for each terrain tile
-        List<float[,]> tMapList = new List<float[,]>();
-        List<float[,]> hMapList = new List<float[,]>();
+       
+        
 
         /*What stage of generation we are on - 
          * 1. Generate temperature and humidity maps for each tile
@@ -357,7 +365,8 @@ public class WorldGen : MonoBehaviour
         int arraySize = 1025*1025;
         mapDemensions = new int2(1025,1025);
         float offsetScale = 1.024f;
-      
+       
+        
         while (currentTerrainIndex < iterations)
         {
 
@@ -373,7 +382,7 @@ public class WorldGen : MonoBehaviour
                
                 tileOffest.x = Mathf.RoundToInt(terrainParents[currentMapIndex].transform.position.x * offsetScale);
                 tileOffest.y = Mathf.RoundToInt(terrainParents[currentMapIndex].transform.position.z * offsetScale);
-                Debug.Log(tileOffest);
+                
                 //Generate a temperature map for that tile and add it to the list
                 tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSeed, tempScale, octaves, persistance, lacunarity, tileOffest));
                 //Wait in order to not completely stall the main thread whilst all complete
@@ -404,7 +413,7 @@ public class WorldGen : MonoBehaviour
                 }
 
               }
-
+            //Evaluate on a per biome basis and set splatmaps
             if (generationStage == 2)
             {
                 
@@ -414,8 +423,9 @@ public class WorldGen : MonoBehaviour
                 //Set aside memory for these arrays
                 tempNative = new NativeArray<float>(arraySize, Allocator.Persistent);
                 humidNative = new NativeArray<float>(arraySize, Allocator.Persistent);
+                
                 //Create a 3d array to hold the values for this map
-                float[,,] splatMap = new float[1025,1025, biomes.Length];
+                float[,,] splatMap = new float[1025,1025, biomeStorage.biomes.Length];
                 //Iterate through the noisemaps and feed that value into the nativeArrays so it can travel between threads
                 for (int y = 0; y < 1025; y++)
                 {
@@ -434,20 +444,22 @@ public class WorldGen : MonoBehaviour
                 }
                 
                 //After filling the nativearrays, call for the job to start evaluation
-                for (int m = 0; m < biomes.Length; m++)
+                for (int m = 0; m < biomeStorage.biomes.Length; m++)
                 {
                     NativeArray<float> biomeNativeSplatMap;
                     biomeNativeSplatMap = new NativeArray<float>(arraySize, Allocator.Persistent);
+                    
 
                     generateSplatJob = new generateSplat()
                     {
                         positions = biomeNativeSplatMap,
                         tempPositions = tempNative,
                         humPositions = humidNative,
-                        minHum = biomes[m].minHum,
-                        maxHum = biomes[m].maxHum,
-                        minTemp = biomes[m].minTemp,
-                        maxTemp = biomes[m].maxTemp
+                        minHum = biomeStorage.biomes[m].minHum,
+                        maxHum = biomeStorage.biomes[m].maxHum,
+                        minTemp = biomeStorage.biomes[m].minTemp,
+                        maxTemp = biomeStorage.biomes[m].maxTemp,
+                        
                     };
                    
 
@@ -457,7 +469,7 @@ public class WorldGen : MonoBehaviour
                     yield return new WaitForSeconds(0.1f);
                     //Force job to complete if it isn't yet
                     generateSplatHandle.Complete();
-                   
+                    
                     //Copy float values to terrain array
                     for(int y=0; y<1025; y++)
                     {
@@ -465,9 +477,13 @@ public class WorldGen : MonoBehaviour
                         {
 
                             
-                            //next try looking at results of heightmap gen next to eachother
+                           
                             splatMap[y,x, m] = generateSplatJob.positions[(y * 1025) + x];
-                            
+                            if (splatMap[y, x, m] != 0)
+                            {
+                                //Update the array of what tiles have what biome at biome M for X and terrain CURRENTTERRAININDEX for Y
+                                biomesPerTerrainTile[m, currentTerrainIndex] = 1;
+                            }
                             
                         }
                         if (y % 250 == 0)
@@ -480,11 +496,15 @@ public class WorldGen : MonoBehaviour
                       yield return new WaitForEndOfFrame();
                     
                     biomeNativeSplatMap.Dispose();
+                    
                 }
 
               
                 //Update terrain tile
                 tDatas[currentTerrainIndex].SetAlphamaps(0,0,splatMap);
+                //Store SplatMap
+                biomeSplatList.Add(splatMap);
+                    
                 if(tDatas[currentTerrainIndex]!=terrainParents[currentTerrainIndex].transform.Find("Main Terrain").GetComponent<Terrain>().terrainData)
                 {
                     Debug.Log("no match");
@@ -492,7 +512,7 @@ public class WorldGen : MonoBehaviour
                 yield return new WaitForEndOfFrame();
                 tempNative.Dispose();
                 humidNative.Dispose();
-               
+                
 
                 //Move on to the text terrain tile
                 currentTerrainIndex += 1;
@@ -506,140 +526,193 @@ public class WorldGen : MonoBehaviour
            
         }
         //Dispose of the nativearrays - This will only happen after every chunk has been generated (unity will hold these values in memory until then)
-       
+
         
         yield break;
     }
 
-    //OLD method to create biome textures. Hangs the main thread for minutes. This one worked ;/
-    public void textureWorld()
+    private IEnumerator generateObjects()
     {
-     //  StartCoroutine("textureTerrains");
-       
-       // /*
-        setBiomeSplats();
-            for (int i = 0; i < tDatas.Count; i++)
+        
+        //Calculate the max weights from each biome
+        maxTreeWeights = new int[biomeStorage.biomes.Length];
+        maxRockWeights = new int[biomeStorage.biomes.Length];
+        for(int i=0; i<biomeStorage.biomes.Length; i++)
+        {
+            for(int j=0; j<biomeStorage.biomes[i].biomeObjects.Length; j++)
             {
-            
-                float[,,] splatMap = new float[tDatas[i].alphamapWidth, tDatas[i].alphamapHeight, tDatas[i].alphamapLayers];
-                for (int y = 0; y < tDatas[i].alphamapHeight; y++)
+                switch (biomeStorage.biomes[i].biomeObjects[j].objType)
                 {
-                    for (int x = 0; x < tDatas[i].alphamapWidth; x++)
-                    {
-                        for (int j = 0; j < biomes.Length; j++)
-                        {
-                            splatMap[y, x, j] = biomes[j].splatMap[x + Mathf.RoundToInt(terrainParents[i].transform.position.x * 1.024f), y + Mathf.RoundToInt(terrainParents[i].transform.position.z * 1.024f)];
+                    case GenerateableObject.typeOfObject.Tree:
+                        maxTreeWeights[i] += biomeStorage.biomes[i].biomeObjects[j].weight;
+                        break;
+                    case GenerateableObject.typeOfObject.Rock:
+                        maxRockWeights[i] += biomeStorage.biomes[i].biomeObjects[j].weight;
+                        break;
 
+                }
+            }
+        }
+        //How many times to run the loop initially
+        int iterations = tDatas.Count;
+        //Current index we are on
+        int currentTile = 0;
+        //Int to store how far the loop should progress before spawning again
+        int density = 5;
+        //Ints and bool to store if biome blending occurs
+        int[] tempBiomeBlend = new int[biomeStorage.biomes.Length];
+        bool doBlend = false;
+        float blendAmount = 0;
+        while (currentTile < iterations)
+        {
+
+            //Store the location of this tile
+            Vector3 updatedTilePosition = terrains[currentTile].transform.position;
+            //Define an array to store the current list of spawnable objects
+            GenerateableObject[] tileObjects = { };
+            //Int to keep track of the biome number selected. -1 So it throws an error if something doesn't work.
+            int biomeIndex=-1;
+            //Loop through points on the heightmap to spawn objects
+            for (int y = 0; y < tDatas[currentTile].heightmapResolution; y += density)
+            {
+                for (int x = 0; x < tDatas[currentTile].heightmapResolution; x += density)
+                {
+                    tempBiomeBlend = new int[biomeStorage.biomes.Length];
+                    doBlend = false;
+                    blendAmount = 0;
+                    //Loop through biomes to check which ones exist
+                    for (int i = 0; i < biomeStorage.biomes.Length; i++)
+                    {
+                        //Check if that biome exists on this terrain tile. If it doesn't, continue and skip this tile.
+                        if (biomesPerTerrainTile[i, currentTile] == 0)
+                        {
+                          //Do nothing
+                        }
+                        else
+                        {
+                            //Check biome splat map at this position
+                            if (biomeSplatList[currentTile][y,x, i] != 0)
+                            {
+                                if (biomeSplatList[currentTile][y, x, i] == 1)
+                                {
+                                    //The biome is not blended
+                                    tileObjects = biomeStorage.biomes[i].biomeObjects;
+                                    biomeIndex = i;
+                                }
+                                else
+                                {
+                                    //The biome is blended, add its weight to the blend array and blendAmount, and mark that we must blend
+                                    tempBiomeBlend[i] = 1;
+                                    doBlend = true;
+                                    blendAmount += biomeSplatList[currentTile][y, x, i];
+                                }
+                            }
                         }
                     }
+                    if (doBlend)
+                    {
+                        float thisBlend = 0;
+                        float blendNumber = Random.Range(0, blendAmount);
+                        for(int i=0; i<biomeStorage.biomes.Length; i++)
+                        {
+                            if (biomeSplatList[currentTile][y, x, i]+thisBlend > blendNumber)
+                            {
+                                tileObjects = biomeStorage.biomes[i].biomeObjects;
+                                biomeIndex = i;
+                            }
+                            else
+                            {
+                                thisBlend += biomeSplatList[currentTile][y, x, i];
+                                break;
+                            }
+                        }
+                    }
+                  
+                    if (biomeIndex != -1)
+                    {
+                        //Will need to be done for each type of objects, AS WELL AS RANDOM CHANCE PER TYPE
+                        if (biomeStorage.biomes[biomeIndex].biomeObjects.Length == 0)
+                        {
+                            //No objects in this biome
+                            continue;
+                        }
+                        else {
+                        //Define random chance for this object to appear
+                        int randomChance = Random.Range(0, 1000);
+                            if (randomChance < 35)
+                            {
+
+                                //Pick a random object from the list depending on weights
+                                int randomWeight = Random.Range(0, maxTreeWeights[biomeIndex]);
+                                //Store the object we want
+                                GenerateableObject selectedOb = null;
+                                //Iterate through list until we find that point. Int is temporary storage of index
+                                int tempIndex = 0;
+                                for (int i = 0; i < tileObjects.Length; i++)
+                                {
+                                    if (tempIndex + tileObjects[i].weight > randomWeight)
+                                    {
+                                        //This object is the index we want
+                                        selectedOb = tileObjects[i];
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        //Not at the index yet, add the failed objects weight to tempIndex
+                                        tempIndex += tileObjects[i].weight;
+
+                                    }
+                                }
+                                //Log error if things got messed up
+                                if (selectedOb == null)
+                                {
+                                    //How the fuck did we get here?
+                                    Debug.LogError("Finished iteration and selected object to spawn is null.");
+                                }
+
+                                //Set the position of where the object should spawn 
+                                //MIGHT HAVE TO CHANGE TO GET HEIGHT AT WORLD COORDS NOT TERRAIN SPECIFIC ONES
+                                Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[currentTile].GetHeight(x,y), updatedTilePosition.z + (y / 1.025f));
+
+                                //Actually spawn the object
+                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.identity);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("Biome index at -1, no biomes exists at this spot");
+                    }
+                    if (y % 500 == 0)
+                    {
+                        //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
-                tDatas[i].SetAlphamaps(0, 0, splatMap);
+            }
+
+
+
+
+
+
+
+            yield return new WaitForSeconds(0.1f);
             
             
-            }
-     //   */
-       
-    }
-    public void setBiomeSplats()
-    {
-
-        //Set the humidity and temperature arrays into nativearrays (2d to 1d)
-
-        NativeArray<float> tempNative;
-        NativeArray<float> humidNative;
-       
-        int arraySize = mapWidth * mapHeight;
-        tempNative = new NativeArray<float>(arraySize, Allocator.TempJob);
-        humidNative = new NativeArray<float>(arraySize, Allocator.TempJob);
-        
-
-
-        for (int y = 0; y < mapHeight; y++)
-        {
-            for (int x = 0; x < mapWidth; x++)
-            {
-                tempNative[y * mapHeight + x] = tempMap[x, y];
-                humidNative[y * mapHeight + x] = humMap[x, y];
-
-            }
+           
+            currentTile += 1;
+            Debug.Log("Finished tile" + currentTile);
         }
-        
-        for (int i = 0; i < biomes.Length; i++)
-        {
-            biomes[i].splatMap = new float[mapWidth, mapHeight];
-            //Repeat for each biome
-            NativeArray<float> biomeNativeSplatMap;
-            biomeNativeSplatMap = new NativeArray<float>(arraySize, Allocator.TempJob);
-
-
-
-            generateSplatJob = new generateSplat()
-            {
-                positions = biomeNativeSplatMap,
-                tempPositions = tempNative,
-                humPositions = humidNative,
-                minHum = biomes[i].minHum,
-                maxHum = biomes[i].maxHum,
-                minTemp = biomes[i].minTemp,
-                maxTemp = biomes[i].maxTemp
-            };
-            generateSplatHandle = generateSplatJob.Schedule(biomeNativeSplatMap.Length, 32);
-
-            generateSplatHandle.Complete();
-
-            for (int y = 0; y < mapHeight; y++)
-            {
-                for (int x = 0; x < mapWidth; x++)
-                {
-                    biomes[i].splatMap[x,y] = generateSplatJob.positions[y * mapHeight + x];
-                }
-            }
-
-            biomeNativeSplatMap.Dispose();
 
 
 
 
 
-
-
-
-
-
-
-
-        }
-        tempNative.Dispose();
-        humidNative.Dispose();
-
-
+        yield break;
     }
-   
-}
-
-
-// Biome class
-[System.Serializable]
-public class Biome
-{
-    public enum BiomeType
-    {
-        Swamp,
-        Snow,
-        Plains,
-        Forest,
-        Rocks,
-        Rainforest,
-        Desert,
-        
-    }
-    public BiomeType biomeType;
-    public TerrainLayer biomeLayer;
-    public float minTemp;
-    public float maxTemp;
-    public float minHum;
-    public float maxHum;
-
-    public float[,] splatMap;
     
 }
+
+
+

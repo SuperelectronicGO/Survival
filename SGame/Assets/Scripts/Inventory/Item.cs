@@ -399,6 +399,14 @@ public class ItemAttribute
     public float value;
     public string info;
 }
+[Serializable]
+public class dropItem
+{
+    public GameObject itemPrefab;
+    public Item item;
+    public float chance;
+    public Vector2 amount;
+}
 
 
 
