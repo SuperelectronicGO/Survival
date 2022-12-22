@@ -27,22 +27,9 @@ public class WorldGen : MonoBehaviour
     public bool textureTerrain = true;
     [Header("Noisemaps")]
     public bool randomSeed = true;
-
-    public int mapWidth;
-    public int mapHeight;
-    public float tempScale;
-    public float humidScale;
-    public int octaves;
-    [Range(0, 1)]
-    public float persistance;
-    public float lacunarity;
-
-    public int tempMapSeed;
-    public int humidMapSeed;
-    public Vector2 offset;
-    public static float[,] tempMap;
-    public static float[,] humMap;
-
+    public NoisemapSettingsScriptable tempMapSettings;
+    public NoisemapSettingsScriptable humidMapSettings;
+    public NoisemapSettingsScriptable biomeDensityMapSettings;
 
     [Header("Data")]
     //Component that controls the generation screen
@@ -73,9 +60,8 @@ public class WorldGen : MonoBehaviour
     public BiomeStorage biomeStorage;
     //Array storing what terrain tiles have what biome. Y is the index of the terrain tile and X is a 1 or 0 depending on if the biome exists.
     public int[,] biomesPerTerrainTile;
-    //Arrays storing the max weights for trees and rocks for each biome, so we don't have to calculate it every tile later
-    public int[] maxTreeWeights;
-    public int[] maxRockWeights;
+    //Arrays storing the max weights for all objects in each biome, so we don't have to calculate it every tile later
+    public int[] maxObjectWeights;
    
 
 
@@ -84,7 +70,10 @@ public class WorldGen : MonoBehaviour
     //Lists of the temperature and humidity maps
     List<float[,]> tMapList = new List<float[,]>();
     List<float[,]> hMapList = new List<float[,]>();
+    //List of biome splatMaps
     List<float[,,]> biomeSplatList = new List<float[,,]>();
+    //List of biome density maps
+    List<float[,]> biomeDensityMapList = new List<float[,]>();
     // Start is called before the first frame update
     void Start()
     {
@@ -117,8 +106,8 @@ public class WorldGen : MonoBehaviour
 
         if (randomSeed)
         {
-            tempMapSeed = Random.Range(0, 100000);
-            humidMapSeed = Random.Range(0, 100000);
+            tempMapSettings.seed = Random.Range(0, 100000);
+            humidMapSettings.seed = Random.Range(0, 100000);
         }
 
         // int2 mapDemensions = new int2(mapWidth, mapHeight);
@@ -126,18 +115,18 @@ public class WorldGen : MonoBehaviour
         //  humMap = BetterNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSeed, humidScale, octaves, persistance, lacunarity, offset);
         //  riverGen = GetComponent<RiverGeneration>();
         //Generate octave offsets
-        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSeed);
-        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSeed);
-        float2[] tempOffsets = new float2[octaves];
-        float2[] humidOffsets = new float2[octaves];
-        for (int i = 0; i < octaves; i++)
+        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSettings.seed);
+        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSettings.seed);
+        float2[] tempOffsets = new float2[tempMapSettings.octaves];
+        float2[] humidOffsets = new float2[humidMapSettings.octaves];
+        for (int i = 0; i < tempMapSettings.octaves; i++)
         {
             //X
             tempOffsets[i].x = randomTempSeed.NextInt(-100000, 100000);
             //Y
             tempOffsets[i].y = randomTempSeed.NextInt(-100000, 100000);
         }
-        for (int i = 0; i < octaves; i++)
+        for (int i = 0; i < humidMapSettings.octaves; i++)
         {
             //X
             humidOffsets[i].x = randomHumidSeed.NextInt(-100000, 100000);
@@ -173,12 +162,6 @@ public class WorldGen : MonoBehaviour
 
         }
 
-        if (Input.GetKeyDown(KeyCode.C))
-        {
-            int2 mapDemensions = new int2(mapWidth, mapHeight);
-            tempMap = BetterNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSeed, tempScale, octaves, persistance, lacunarity, offset);
-            humMap = BetterNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSeed, humidScale, octaves, persistance, lacunarity, offset);
-        }
         if (orderInWorldGeneration == 0)
         {
             if (generateTerrain)
@@ -323,19 +306,19 @@ public class WorldGen : MonoBehaviour
         //Create a new array to store the biomes per terrain tile, X is biomes and Y is tiles
         biomesPerTerrainTile = new int[biomeStorage.biomes.Length, terrains.Count];
         //Generate octave offsets
-        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSeed);
-        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSeed);
-        float2[] tempOffsets = new float2[octaves];
-        float2[] humidOffsets = new float2[octaves];
+        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSettings.seed);
+        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSettings.seed);
+        float2[] tempOffsets = new float2[tempMapSettings.octaves];
+        float2[] humidOffsets = new float2[humidMapSettings.octaves];
         //Give random octave offsets
-        for(int i=0; i<octaves; i++)
+        for(int i=0; i<tempMapSettings.octaves; i++)
         {
             //X
             tempOffsets[i].x = randomTempSeed.NextInt(-100000, 100000);
             //Y
             tempOffsets[i].y = randomTempSeed.NextInt(-100000, 100000);
         }
-        for (int i = 0; i < octaves; i++)
+        for (int i = 0; i < humidMapSettings.octaves; i++)
         {
             //X
             humidOffsets[i].x = randomHumidSeed.NextInt(-100000, 100000);
@@ -384,11 +367,11 @@ public class WorldGen : MonoBehaviour
                 tileOffest.y = Mathf.RoundToInt(terrainParents[currentMapIndex].transform.position.z * offsetScale);
                 
                 //Generate a temperature map for that tile and add it to the list
-                tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSeed, tempScale, octaves, persistance, lacunarity, tileOffest));
+                tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSettings.seed, tempMapSettings.scale, tempMapSettings.octaves, tempMapSettings.persistance, tempMapSettings.lacunarity, tileOffest));
                 //Wait in order to not completely stall the main thread whilst all complete
                 yield return new WaitForSeconds(0.02f);
                 //Generate a humidity map for that tile and add it to the list
-                hMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSeed, humidScale, octaves, persistance, lacunarity, tileOffest));
+                hMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSettings.seed, humidMapSettings.scale,humidMapSettings. octaves, humidMapSettings.persistance, humidMapSettings.lacunarity, tileOffest));
 
               
                 //Increment the current tile by one
@@ -533,24 +516,13 @@ public class WorldGen : MonoBehaviour
 
     private IEnumerator generateObjects()
     {
-        
         //Calculate the max weights from each biome
-        maxTreeWeights = new int[biomeStorage.biomes.Length];
-        maxRockWeights = new int[biomeStorage.biomes.Length];
-        for(int i=0; i<biomeStorage.biomes.Length; i++)
+        maxObjectWeights = new int[biomeStorage.biomes.Length];
+        //Iterate to set the max weights for each biome
+        for (int i = 0; i < biomeStorage.biomes.Length; i++)
         {
-            for(int j=0; j<biomeStorage.biomes[i].biomeObjects.Length; j++)
-            {
-                switch (biomeStorage.biomes[i].biomeObjects[j].objType)
-                {
-                    case GenerateableObject.typeOfObject.Tree:
-                        maxTreeWeights[i] += biomeStorage.biomes[i].biomeObjects[j].weight;
-                        break;
-                    case GenerateableObject.typeOfObject.Rock:
-                        maxRockWeights[i] += biomeStorage.biomes[i].biomeObjects[j].weight;
-                        break;
-
-                }
+            for(int j = 0; j<biomeStorage.biomes[i].biomeObjects.Length; j++) {
+                maxObjectWeights[i]+=biomeStorage.biomes[i].biomeObjects[j].weight;
             }
         }
         //How many times to run the loop initially
@@ -558,20 +530,30 @@ public class WorldGen : MonoBehaviour
         //Current index we are on
         int currentTile = 0;
         //Int to store how far the loop should progress before spawning again
-        int density = 5;
+        int density = 8;
         //Ints and bool to store if biome blending occurs
         int[] tempBiomeBlend = new int[biomeStorage.biomes.Length];
         bool doBlend = false;
         float blendAmount = 0;
+        //Demensions of the biome density map
+        int2 densityMapDimensions = new int2(257, 257);
+        //Offset of each tile
+        int2 tileOffset;
+        float offsetScale = 1.024f;
         while (currentTile < iterations)
         {
-
+            //Define the new tileOffset - division by 4 is because each tile is 256x256, not 1024x1024
+            tileOffset = new int2();
+            tileOffset.x = Mathf.RoundToInt(terrainParents[currentTile].transform.position.x * offsetScale)/4;
+            tileOffset.y = Mathf.RoundToInt(terrainParents[currentTile].transform.position.z * offsetScale)/4;
             //Store the location of this tile
             Vector3 updatedTilePosition = terrains[currentTile].transform.position;
             //Define an array to store the current list of spawnable objects
             GenerateableObject[] tileObjects = { };
             //Int to keep track of the biome number selected. -1 So it throws an error if something doesn't work.
             int biomeIndex=-1;
+            //Generate a noisemap for the density of this tile
+            biomeDensityMapList.Add(TerrainNoise.GenerateNoiseMap(densityMapDimensions, (uint)biomeDensityMapSettings.seed, biomeDensityMapSettings.scale, biomeDensityMapSettings.octaves, biomeDensityMapSettings.persistance, biomeDensityMapSettings.lacunarity, tileOffset));
             //Loop through points on the heightmap to spawn objects
             for (int y = 0; y < tDatas[currentTile].heightmapResolution; y += density)
             {
@@ -609,6 +591,7 @@ public class WorldGen : MonoBehaviour
                             }
                         }
                     }
+                    //If blending, decide a biome that will take prevelance at this spot (weighted by biome splatmap #)
                     if (doBlend)
                     {
                         float thisBlend = 0;
@@ -627,10 +610,12 @@ public class WorldGen : MonoBehaviour
                             }
                         }
                     }
-                  
+                    //As long as there is actually a biome, generate
                     if (biomeIndex != -1)
                     {
-                        //Will need to be done for each type of objects, AS WELL AS RANDOM CHANCE PER TYPE
+
+                       
+                        //Check that there are objects in this biome
                         if (biomeStorage.biomes[biomeIndex].biomeObjects.Length == 0)
                         {
                             //No objects in this biome
@@ -639,11 +624,13 @@ public class WorldGen : MonoBehaviour
                         else {
                         //Define random chance for this object to appear
                         int randomChance = Random.Range(0, 1000);
-                            if (randomChance < 35)
+                            /* The odds of this object appearing depend on the chance for its category defined above.
+                             * This number is multiplied by the value of the biome density map + 0.25 (normalized between 0 and 1)
+                               to decide if an object is actually spawned at this spot. The biome density X and Y are divided by 4 as it samples a smaller map. */
+                            if (randomChance < biomeStorage.biomes[biomeIndex].biomeDensity * Mathf.Lerp(0, 1.25f, (biomeDensityMapList[currentTile][x/4, y/4] + 0.25f))) 
                             {
-
                                 //Pick a random object from the list depending on weights
-                                int randomWeight = Random.Range(0, maxTreeWeights[biomeIndex]);
+                                int randomWeight = Random.Range(0, maxObjectWeights[biomeIndex]);
                                 //Store the object we want
                                 GenerateableObject selectedOb = null;
                                 //Iterate through list until we find that point. Int is temporary storage of index
@@ -670,12 +657,34 @@ public class WorldGen : MonoBehaviour
                                     Debug.LogError("Finished iteration and selected object to spawn is null.");
                                 }
 
-                                //Set the position of where the object should spawn 
-                                //MIGHT HAVE TO CHANGE TO GET HEIGHT AT WORLD COORDS NOT TERRAIN SPECIFIC ONES
-                                Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[currentTile].GetHeight(x,y), updatedTilePosition.z + (y / 1.025f));
-
+                                //Store a reference to the tiles normals
+                                float newX = x;
+                                float newY = y;
+                                Vector3 spotNormal = tDatas[currentTile].GetInterpolatedNormal(newX/1025,newY/1025);
+                                //Set the position of where the object should spawn
+                                Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[currentTile].GetHeight(x,y)+selectedOb.yOffset, updatedTilePosition.z + (y / 1.025f));
+                                //Change spawn position Y depending on normals so roots and things don't stick out
+                                if (selectedOb.offsetHeightByNormals)
+                                {
+                                    //100 is the multiple so it doesn't stick out of the terrain on large slopes
+                                    spawnedPosition.y -= (1 - Mathf.Abs(spotNormal.y)) * 100;
+                                }
+                                //Rotate objects
+                                Vector3 objectRotation = Vector3.zero;
+                                if (selectedOb.alignNormals)
+                                {
+                                    objectRotation = spotNormal;
+                                   // objectRotation.x *= -1;
+                                    //objectRotation.z *= -1;
+                                }
                                 //Actually spawn the object
-                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.identity);
+                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
+                                //Scale the objects
+                                float randomAmnt = Random.Range(0f, 1f);
+                                float newObjectScale = selectedOb.scale.Evaluate(randomAmnt);
+                                spawnedObject.transform.localScale = new Vector3(newObjectScale, newObjectScale, newObjectScale);
+                                spawnedObject.name = spotNormal.ToString();
+                                
                             }
                         }
                     }
@@ -683,7 +692,7 @@ public class WorldGen : MonoBehaviour
                     {
                         Debug.Log("Biome index at -1, no biomes exists at this spot");
                     }
-                    if (y % 500 == 0)
+                    if (y % 800 == 0)
                     {
                         //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
                         yield return new WaitForEndOfFrame();

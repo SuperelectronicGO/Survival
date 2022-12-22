@@ -115,7 +115,7 @@ public static class TerrainNoise
         {
             for (var x = 0; x < dimensions.x; x++)
             {
-
+                
                 //  result[x, y] = math.unlerp(minNoiseHeight, maxNoiseHeight, result[x, y]);
                
                 result[x, y] = math.unlerp(-1.15f,1.15f, jobResult[y * dimensions.x + x]);

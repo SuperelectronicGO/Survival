@@ -36,14 +36,14 @@ public class TerrainBiome
     public float minHum;
     public float maxHum;
     public float[,] splatMap;
+    [Header("Chance from 0-1000")]
+    [Range(0,1000)]
+    public int biomeDensity;
     [Header("")]
     [Header("Biome Objects")]
     [NonReorderable]
     public GenerateableObject[] biomeObjects;
-    [Header("Biome Object Settings")]
-    public Vector2 treeAmount;
-    public Vector2 rockAmount;
-
+    
 }
 
 [System.Serializable]
@@ -53,11 +53,16 @@ public class GenerateableObject
     public enum typeOfObject
     {
         Tree,
-        Rock
+        Rock,
+        Foliage,
+        Misc
     }
     public typeOfObject objType;
     public GameObject prefab;
-    public Vector2 newScale;
+    public AnimationCurve scale;
+    public float yOffset;
+    public bool alignNormals;
+    public bool offsetHeightByNormals;
     [Range(0,1000)]
     public int weight;
 
