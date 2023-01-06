@@ -15,3 +15,12 @@ ShaderVariantCollection:
       type: 3}
     second:
       variants: []
+  - first: {fileID: 4800000, guid: 849a5a6de3e536740a523acf800d192d, type: 3}
+    second:
+      variants:
+      - keywords: _ALPHAPREMULTIPLY_ON _SURFACE_TYPE_TRANSPARENT
+        passType: 0
+      - keywords: _NORMALMAP
+        passType: 0
+      - keywords: _NORMALMAP _SURFACE_TYPE_TRANSPARENT
+        passType: 0

@@ -6,7 +6,7 @@ using MapMagic.Terrains;
 using MapMagic.Products;
 using MapMagic.Nodes;
 using MapMagic.Nodes.MatrixGenerators;
-using MapMagic.Nodes.ObjectsGenerators;
+//using MapMagic.Nodes.ObjectsGenerators;
 using MapMagic.Core;
 #endif
 #if UNITY_EDITOR
@@ -247,7 +247,8 @@ namespace GPUInstancer
                 GrassOutput200 gen = (GrassOutput200)generator;
                 terrainDetailPrototypes.Add(gen.prototype);
             }
-            // tree instancing
+            // tree instancing - REMOVED BECAUSE I DON'T OWN MM OBJECTS
+            /*
             else if (generator is TreesOutput)
             {
                 TreesOutput gen = (TreesOutput)generator;
@@ -279,7 +280,9 @@ namespace GPUInstancer
                             prefabs.Add(gen.prefabs[i]);
                     }
                 }
+                
             }
+            */
         }
 
         public void GeneratePrototypes()

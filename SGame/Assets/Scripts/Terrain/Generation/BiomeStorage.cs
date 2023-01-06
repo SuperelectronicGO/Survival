@@ -43,7 +43,10 @@ public class TerrainBiome
     [Header("Biome Objects")]
     [NonReorderable]
     public GenerateableObject[] biomeObjects;
-    
+    [Header("")]
+    [Header("Detail Objects")]
+    [NonReorderable]
+    public DetailObjectScriptable[] details;
 }
 
 [System.Serializable]

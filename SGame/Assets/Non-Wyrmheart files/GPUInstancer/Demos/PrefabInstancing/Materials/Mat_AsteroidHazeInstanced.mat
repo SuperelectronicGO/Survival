@@ -66,7 +66,7 @@ Material:
     - _HazeColor: {r: 0.6, g: 0.7568628, b: 0.8313726, a: 1}
     - _HazeColor1: {r: 0.59607846, g: 0.7647059, b: 0.8392157, a: 1}
   m_BuildTextureStacks: []
---- !u!114 &6455573072540019872
+--- !u!114 &2239085465890647152
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

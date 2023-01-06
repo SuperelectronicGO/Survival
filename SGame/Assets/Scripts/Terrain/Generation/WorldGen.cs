@@ -7,16 +7,18 @@ using Unity.Collections;
 using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
-
+using GPUInstancer;
 
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-    
-    //Job stuff
-    JobHandle generateSplatHandle;
-    generateSplat generateSplatJob;
 
+    //Jobhandles for the generateSplat job and the generateDetails job
+    JobHandle generateSplatHandle;
+    JobHandle generateDetailsHandle;
+    //Store references
+    generateSplat generateSplatJob;
+    generateDetails generateDetailsJob;
    
     
 
@@ -25,7 +27,7 @@ public class WorldGen : MonoBehaviour
     [Header("Generation Parts")]
     public bool generateTerrain = true;
     public bool textureTerrain = true;
-    [Header("Noisemaps")]
+    [Header("Noisemap Settings")]
     public bool randomSeed = true;
     public NoisemapSettingsScriptable tempMapSettings;
     public NoisemapSettingsScriptable humidMapSettings;
@@ -59,14 +61,9 @@ public class WorldGen : MonoBehaviour
    //Scriptable Object with all the biomes and their settings
     public BiomeStorage biomeStorage;
     //Array storing what terrain tiles have what biome. Y is the index of the terrain tile and X is a 1 or 0 depending on if the biome exists.
-    public int[,] biomesPerTerrainTile;
+    public List<int[]> biomesPerTerrainTile = new List<int[]>();
     //Arrays storing the max weights for all objects in each biome, so we don't have to calculate it every tile later
     public int[] maxObjectWeights;
-   
-
-
-
-
     //Lists of the temperature and humidity maps
     List<float[,]> tMapList = new List<float[,]>();
     List<float[,]> hMapList = new List<float[,]>();
@@ -74,6 +71,14 @@ public class WorldGen : MonoBehaviour
     List<float[,,]> biomeSplatList = new List<float[,,]>();
     //List of biome density maps
     List<float[,]> biomeDensityMapList = new List<float[,]>();
+    public Texture2D healthyDryNoiseTexture;
+
+
+
+
+
+
+
     // Start is called before the first frame update
     void Start()
     {
@@ -138,19 +143,23 @@ public class WorldGen : MonoBehaviour
 
         
         mapDemensions = new int2(1024, 1024);
-        
-        
-   
+
+       
     }
 
     // Update is called once per frame
     void Update()
     {
-      
+
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            StartCoroutine(GPUIIntitialization());
+        }
         if (Input.GetKeyDown(KeyCode.U))
         {
             // textureWorld();
-              StartCoroutine(textureTerrains());
+            //StartCoroutine(textureTerrains());
+            StartCoroutine(initialTerrainGeneration());
           
           
         }
@@ -211,8 +220,95 @@ public class WorldGen : MonoBehaviour
 
     }
 
-   // Method that compares the temperature and humidity maps to a biomes parameters to determine what areas of the map are that biome
-   [BurstCompile]
+
+
+    //Setup method to initialize and generate certain values
+    private void beforeTerrainGeneration()
+    {
+        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSettings.seed);
+        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSettings.seed);
+        float2[] tempOffsets = new float2[tempMapSettings.octaves];
+        float2[] humidOffsets = new float2[humidMapSettings.octaves];
+        //Give random octave offsets
+        for (int i = 0; i < tempMapSettings.octaves; i++)
+        {
+            //X
+            tempOffsets[i].x = randomTempSeed.NextInt(-100000, 100000);
+            //Y
+            tempOffsets[i].y = randomTempSeed.NextInt(-100000, 100000);
+        }
+        for (int i = 0; i < humidMapSettings.octaves; i++)
+        {
+            //X
+            humidOffsets[i].x = randomHumidSeed.NextInt(-100000, 100000);
+            //Y
+            humidOffsets[i].y = randomHumidSeed.NextInt(-100000, 100000);
+        }
+    }
+    //Method that generates the initial tiles
+    bool moveNext = false;
+    private IEnumerator initialTerrainGeneration()
+    {
+        int num = 0;
+        beforeTerrainGeneration();
+        while (num < tDatas.Count)
+        {
+            StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num));
+            yield return new WaitUntil(() => moveNext = true);
+            yield return new WaitForSeconds(1f);
+            num += 1;
+            moveNext = false;
+            Debug.Log("Finished tile " + (num-1));
+        }
+
+
+        yield break;
+    }
+
+
+
+    private IEnumerator GPUIIntitialization()
+    {
+        //Current terrain number
+        int iterationNumber = 0;
+        //Temporary reference to the current detail prototype scriptable object
+        GPUInstancerDetailPrototype currentDetailPrototype = null;
+       
+        
+        while (iterationNumber < terrains.Count)
+        {
+
+
+                GameObject g = new GameObject();
+                g.SetActive(false);
+                g.name = "GPUI for " + terrainParents[iterationNumber].name;
+                g.transform.parent = terrains[iterationNumber].transform;
+                GPUInstancerDetailManager detailManager = g.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
+                detailManager.AddTerrain(terrains[iterationNumber]);
+                GPUInstancerAPI.SetupManagerWithTerrain(detailManager, terrains[iterationNumber]);
+                detailManager.runInThreads = true;
+                detailManager.isFrustumCulling = true;
+                detailManager.isOcclusionCulling = true;
+                detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
+                detailManager.terrainSettings.maxDetailDistance = 500;
+                detailManager.terrainSettings.autoSPCellSize = true;
+                for (int i = 0; i < detailManager.prototypeList.Count; i++)
+                {
+                currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
+                currentDetailPrototype.quadCount = 4;
+                }
+                g.SetActive(true);
+                yield return new WaitForEndOfFrame();
+                iterationNumber += 1;
+            
+        }
+
+
+        yield break;
+    }
+
+    //Job that compares the temperature and humidity maps to a biomes parameters to determine what areas of the map are that biome
+    [BurstCompile]
     private struct generateSplat : IJobParallelFor { 
         //The final list for the biomes splatmap in 1D
         public NativeArray<float> positions;
@@ -298,222 +394,313 @@ public class WorldGen : MonoBehaviour
 
             }
 }
+
+    //Job that generates the detail maps for a terrain tile
+    [BurstCompile]
+    private struct generateDetails : IJobParallelFor
+    {
+        //NativeArray storing the detail map in 1D
+        public NativeArray<int> collapsedDetailMap;
+        //NativeArray storing the biome texture map in 1D
+        public NativeArray<float> tileBiomeMap;
+
+        public void Execute(int i)
+        {
+          //  if (tileBiomeMap[i] != 0)
+          //  {
+                collapsedDetailMap[i] = 2;
+          //  }
+        }
+
+
+    }
  
 
-   
-    private IEnumerator textureTerrains()
+    //Method that generates a terrain tile
+    private IEnumerator generateTerrainTile(Terrain terrain, Transform terrainParent, int tileNumber)
     {
-        //Create a new array to store the biomes per terrain tile, X is biomes and Y is tiles
-        biomesPerTerrainTile = new int[biomeStorage.biomes.Length, terrains.Count];
-        //Generate octave offsets
-        var randomTempSeed = new Unity.Mathematics.Random((uint)tempMapSettings.seed);
-        var randomHumidSeed = new Unity.Mathematics.Random((uint)humidMapSettings.seed);
-        float2[] tempOffsets = new float2[tempMapSettings.octaves];
-        float2[] humidOffsets = new float2[humidMapSettings.octaves];
-        //Give random octave offsets
-        for(int i=0; i<tempMapSettings.octaves; i++)
-        {
-            //X
-            tempOffsets[i].x = randomTempSeed.NextInt(-100000, 100000);
-            //Y
-            tempOffsets[i].y = randomTempSeed.NextInt(-100000, 100000);
-        }
-        for (int i = 0; i < humidMapSettings.octaves; i++)
-        {
-            //X
-            humidOffsets[i].x = randomHumidSeed.NextInt(-100000, 100000);
-            //Y
-            humidOffsets[i].y = randomHumidSeed.NextInt(-100000, 100000);
-        }
-
-      
-
-       
-        
-
-        /*What stage of generation we are on - 
-         * 1. Generate temperature and humidity maps for each tile
-         * 2. Evaluate the biomes for each map and update terrain splatmap
-         */
-        int generationStage = 1;
-        //What index (terrain tile) we are generating the map for
-        int currentMapIndex = 0;
-        //What index (terrain tile) we are setting the splatmap for
-        int currentTerrainIndex = 0;
+        #region References
         //Vector2 to hold the offset of the tile so it generates at the correct spot
         int2 tileOffest;
-        //How many times to do the function
-        int iterations = tDatas.Count;
         //Array size is equal to the demensions of the splatmap
-        int arraySize = 1025*1025;
-        mapDemensions = new int2(1025,1025);
+        int arraySize = 1025 * 1025;
+        mapDemensions = new int2(1025, 1025);
         float offsetScale = 1.024f;
-       
-        
-        while (currentTerrainIndex < iterations)
+        //Create nativearrays to hold the values for our floats
+        NativeArray<float> tempNative;
+        NativeArray<float> humidNative;
+        //List of NativeArrays that hold the splatmaps of each biome
+        List<NativeArray<float>> biomeNativeArrays = new List<NativeArray<float>>();
+        //Set aside memory for these arrays
+        tempNative = new NativeArray<float>(arraySize, Allocator.Persistent);
+        humidNative = new NativeArray<float>(arraySize, Allocator.Persistent);
+        //Create a 3d array to hold the biome texture values for this map
+        float[,,] splatMap = new float[1025, 1025, biomeStorage.biomes.Length];
+        //Reference to the GPUI detail prototype
+        GPUInstancerDetailPrototype currentDetailPrototype = null;
+        //List of detail prototypes for this terrain
+        List<DetailPrototype> terrainDetailPrototypes = new List<DetailPrototype>();
+        #endregion
+
+
+
+
+
+        //Log this tile in the terrain tile biome list
+        biomesPerTerrainTile.Add(new int[biomeStorage.biomes.Length]);
+
+        #region Texturing
+        //Get the offset of this tile in the world
+        tileOffest = new int2();
+        tileOffest.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale);
+        tileOffest.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale);
+        //Generate a temperature map for that tile and add it to the list
+        tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSettings.seed, tempMapSettings.scale, tempMapSettings.octaves, tempMapSettings.persistance, tempMapSettings.lacunarity, tileOffest));
+        //Wait in order to not completely stall the main thread whilst all complete
+        yield return new WaitForSeconds(0.03f);
+        //Generate a humidity map for that tile and add it to the list
+        hMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSettings.seed, humidMapSettings.scale, humidMapSettings.octaves, humidMapSettings.persistance, humidMapSettings.lacunarity, tileOffest));
+        yield return new WaitForSeconds(0.03f);
+
+        //Iterate through the noisemaps and feed that value into the nativeArrays so it can travel between threads
+        for (int y = 0; y < 1025; y++)
         {
-
-            //Loop through all terrains at the beginning of the game and generate maps for them
-            if (generationStage == 1)
+            for (int x = 0; x < 1025; x++)
             {
-                //Update generation screen
-                genScreen.currentGenStage = "Biome noisemaps";
-                genScreen.genAmount = "(" + currentMapIndex + "/" + iterations + ")";
-                genScreen.refreshGenerationUI();
-                //Get the current offset of this terrain tile
-                tileOffest = new int2();
-               
-                tileOffest.x = Mathf.RoundToInt(terrainParents[currentMapIndex].transform.position.x * offsetScale);
-                tileOffest.y = Mathf.RoundToInt(terrainParents[currentMapIndex].transform.position.z * offsetScale);
-                
-                //Generate a temperature map for that tile and add it to the list
-                tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSettings.seed, tempMapSettings.scale, tempMapSettings.octaves, tempMapSettings.persistance, tempMapSettings.lacunarity, tileOffest));
-                //Wait in order to not completely stall the main thread whilst all complete
-                yield return new WaitForSeconds(0.02f);
-                //Generate a humidity map for that tile and add it to the list
-                hMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSettings.seed, humidMapSettings.scale,humidMapSettings. octaves, humidMapSettings.persistance, humidMapSettings.lacunarity, tileOffest));
+                tempNative[(y * 1025) + x] = tMapList[tileNumber][x, y];
+                humidNative[(y * 1025) + x] = hMapList[tileNumber][x, y];
 
-              
-                //Increment the current tile by one
-                currentMapIndex += 1;
-                //Update generation screen
-                genScreen.genAmount = "("+currentMapIndex + "/" + iterations+")";
-                genScreen.refreshGenerationUI();
-                //Wait again in order to not stall the main thread
-                yield return new WaitForSeconds(0.02f);
 
-              
-                //Check if map has been generated for all tiles, if so move on to the next tile and update the generation screen
-                if (currentMapIndex == tDatas.Count)
-                {
-                //    a.DrawNoiseMap(p);
-                    genScreen.currentGenStage = "Biome textures";
-                    genScreen.genAmount = "(" + currentTerrainIndex + "/" + iterations + ")";
-                    genScreen.refreshGenerationUI();
-                    
-                    generationStage = 2;
-                   
-                }
-
-              }
-            //Evaluate on a per biome basis and set splatmaps
-            if (generationStage == 2)
-            {
-                
-                //Create nativearrays to hold the values for our floats
-                NativeArray<float> tempNative;
-                NativeArray<float> humidNative;
-                //Set aside memory for these arrays
-                tempNative = new NativeArray<float>(arraySize, Allocator.Persistent);
-                humidNative = new NativeArray<float>(arraySize, Allocator.Persistent);
-                
-                //Create a 3d array to hold the values for this map
-                float[,,] splatMap = new float[1025,1025, biomeStorage.biomes.Length];
-                //Iterate through the noisemaps and feed that value into the nativeArrays so it can travel between threads
-                for (int y = 0; y < 1025; y++)
-                {
-                    for (int x = 0; x <1025; x++)
-                    {
-                        tempNative[(y * 1025) + x] = tMapList[currentTerrainIndex][x,y];
-                        humidNative[(y * 1025) + x] = hMapList[currentTerrainIndex][x, y];
-                        
-                           
-                        
-                    }
-                    if (y % 250 == 0)
-                    {
-                        yield return new WaitForEndOfFrame();
-                    }
-                }
-                
-                //After filling the nativearrays, call for the job to start evaluation
-                for (int m = 0; m < biomeStorage.biomes.Length; m++)
-                {
-                    NativeArray<float> biomeNativeSplatMap;
-                    biomeNativeSplatMap = new NativeArray<float>(arraySize, Allocator.Persistent);
-                    
-
-                    generateSplatJob = new generateSplat()
-                    {
-                        positions = biomeNativeSplatMap,
-                        tempPositions = tempNative,
-                        humPositions = humidNative,
-                        minHum = biomeStorage.biomes[m].minHum,
-                        maxHum = biomeStorage.biomes[m].maxHum,
-                        minTemp = biomeStorage.biomes[m].minTemp,
-                        maxTemp = biomeStorage.biomes[m].maxTemp,
-                        
-                    };
-                   
-
-                    //Schedule the job
-                    generateSplatHandle = generateSplatJob.Schedule(biomeNativeSplatMap.Length, 128);
-                    //Pause to not stutter frames
-                    yield return new WaitForSeconds(0.1f);
-                    //Force job to complete if it isn't yet
-                    generateSplatHandle.Complete();
-                    
-                    //Copy float values to terrain array
-                    for(int y=0; y<1025; y++)
-                    {
-                        for(int x=0; x<1025; x++)
-                        {
-
-                            
-                           
-                            splatMap[y,x, m] = generateSplatJob.positions[(y * 1025) + x];
-                            if (splatMap[y, x, m] != 0)
-                            {
-                                //Update the array of what tiles have what biome at biome M for X and terrain CURRENTTERRAININDEX for Y
-                                biomesPerTerrainTile[m, currentTerrainIndex] = 1;
-                            }
-                            
-                        }
-                        if (y % 250 == 0)
-                        {
-                            yield return new WaitForEndOfFrame();
-                        }
-                    }
-                   
-
-                      yield return new WaitForEndOfFrame();
-                    
-                    biomeNativeSplatMap.Dispose();
-                    
-                }
-
-              
-                //Update terrain tile
-                tDatas[currentTerrainIndex].SetAlphamaps(0,0,splatMap);
-                //Store SplatMap
-                biomeSplatList.Add(splatMap);
-                    
-                if(tDatas[currentTerrainIndex]!=terrainParents[currentTerrainIndex].transform.Find("Main Terrain").GetComponent<Terrain>().terrainData)
-                {
-                    Debug.Log("no match");
-                }
-                yield return new WaitForEndOfFrame();
-                tempNative.Dispose();
-                humidNative.Dispose();
-                
-
-                //Move on to the text terrain tile
-                currentTerrainIndex += 1;
-                
-                //Update generation screen values
-                genScreen.genAmount = "(" + currentTerrainIndex + "/" + iterations + ")";
-                genScreen.refreshGenerationUI();
-               
 
             }
-           
+            if (y % 250 == 0)
+            {
+                yield return new WaitForEndOfFrame();
+            }
         }
-        //Dispose of the nativearrays - This will only happen after every chunk has been generated (unity will hold these values in memory until then)
 
+        for (int m = 0; m < biomeStorage.biomes.Length; m++)
+        {
+            
+            biomeNativeArrays.Add(new NativeArray<float>(arraySize, Allocator.Persistent));
+
+
+            generateSplatJob = new generateSplat()
+            {
+                positions = biomeNativeArrays[m],
+                tempPositions = tempNative,
+                humPositions = humidNative,
+                minHum = biomeStorage.biomes[m].minHum,
+                maxHum = biomeStorage.biomes[m].maxHum,
+                minTemp = biomeStorage.biomes[m].minTemp,
+                maxTemp = biomeStorage.biomes[m].maxTemp,
+
+            };
+
+
+            //Schedule the job
+            generateSplatHandle = generateSplatJob.Schedule(biomeNativeArrays[m].Length, 128);
+            //Pause to not stutter frames
+            yield return new WaitUntil(() => generateSplatHandle.IsCompleted == true);
+            generateSplatHandle.Complete();
+            yield return new WaitForEndOfFrame();
+            
+
+            //Copy float values to terrain array
+            for (int y = 0; y < 1025; y++)
+            {
+                for (int x = 0; x < 1025; x++)
+                {
+
+
+
+                    splatMap[y, x, m] = generateSplatJob.positions[(y * 1025) + x];
+                    if (splatMap[y, x, m] != 0)
+                    {
+                        //Update the array of what tiles have what biome at biome M for X and terrain CURRENTTERRAININDEX for Y
+                        biomesPerTerrainTile[tileNumber][m] = 1;
+                    }
+
+                }
+                if (y % 250 == 0)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
+            }
+
+
+            yield return new WaitForEndOfFrame();
+
+            
+
+        }
+
+        //Update terrain tile
+        tDatas[tileNumber].SetAlphamaps(0, 0, splatMap);
+        //Store SplatMap
+        biomeSplatList.Add(splatMap);
+        Debug.Log("got here");
+
+
+
+        //Dispose of NativeArrays
         
+        tempNative.Dispose();
+        humidNative.Dispose();
+        
+        #endregion
+
+        #region Details
+
+        //Get a list of all the detail prototypes we will use for this terrain
+        for(int i=0; i<biomeStorage.biomes.Length; i++)
+        {
+            //Skip this biome if it doesn't exist on the tile
+            if (biomesPerTerrainTile[tileNumber][i] == 0)
+            {
+                continue;
+            }
+
+            //If it does, add each detail in this biome to the list of details
+            for(int j=0; j<biomeStorage.biomes[i].details.Length; i++)
+            {
+                //Fill in settings
+                DetailPrototype proto = new DetailPrototype();
+                DetailObjectScriptable settings = biomeStorage.biomes[i].details[j];
+                proto.healthyColor = settings.healthyColor;
+                proto.dryColor = settings.dryColor;
+                proto.holeEdgePadding = settings.holeEdgePadding;
+                proto.minHeight = settings.minHeight;
+                proto.maxHeight = settings.maxHeight;
+                proto.minWidth = settings.minWidth;
+                proto.maxWidth = settings.maxWidth;
+                proto.noiseSeed = settings.noiseSeed;
+                proto.noiseSpread = settings.noiseSpread;
+                proto.usePrototypeMesh = settings.usePrototypeMesh;
+                if (proto.usePrototypeMesh)
+                {
+                    proto.prototype = settings.prototypeMesh;
+                }
+                else
+                {
+                    proto.prototypeTexture = settings.prototypeTexture;
+                }
+                
+                terrainDetailPrototypes.Add(proto);
+            }
+
+        }
+        //Assign detail prototypes to this terrains as an array
+        tDatas[tileNumber].detailPrototypes = new DetailPrototype[0];
+        tDatas[tileNumber].detailPrototypes = terrainDetailPrototypes.ToArray();
+        
+            //Create a new gameobject to be the detail manager
+            GameObject GPUIManagerObject = new GameObject();
+            //Disable the object so we can set all of the references and so generation is done before it enables
+            GPUIManagerObject.SetActive(false);
+            //Name the detail manager to be the GPUI for that terrain tile
+            GPUIManagerObject.name = "GPUI for " + terrains[tileNumber].name;
+            //Set the detail manager to be the child of its terrain
+            GPUIManagerObject.transform.parent = terrains[tileNumber].transform;
+            //Add the GPUInstancerDetailManager class to the object
+            GPUInstancerDetailManager detailManager = GPUIManagerObject.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
+            //Set the terrain of the manager
+            detailManager.AddTerrain(terrains[tileNumber]);
+            //Call the GPUInstancer API function to sync the terrain with the manager
+            GPUInstancerAPI.SetupManagerWithTerrain(detailManager, terrains[tileNumber]);
+            //Fill in settings to the detail manager
+            detailManager.runInThreads = true;
+            detailManager.isFrustumCulling = true;
+            detailManager.isOcclusionCulling = true;
+            detailManager.terrainSettings.maxDetailDistance = 500;
+            detailManager.terrainSettings.autoSPCellSize = true;
+
+            //Generate a new scriptableObject to set as the managers terrain settings
+            detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
+
+
+            //Setup each detail protoype on the manager. Later, each of these will inherit its values from my own scriptableObjects
+            for (int i = 0; i < detailManager.prototypeList.Count; i++)
+            {
+                currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
+                currentDetailPrototype.quadCount = 4;
+                
+            }
+
+            //Generate the detail maps for each of the details
+            for (int i = 0; i < biomeStorage.biomes.Length; i++)
+            {
+                //Check to see if this terrain tile has this biome
+                if (biomesPerTerrainTile[tileNumber][i] == 0)
+                {
+                    //Biome doesn't exist on this tile, skip and don't generate a map for it
+                    continue;
+                }
+
+
+                //If the biome does exist, create a job to set its details
+                //Define a NativeArray that will hold the collapsed detail map
+                NativeArray<int> collapsedDetailMap = new NativeArray<int>(tDatas[tileNumber].detailHeight * tDatas[tileNumber].detailWidth, Allocator.Persistent);
+                generateDetailsJob = new generateDetails
+                {
+                    collapsedDetailMap = collapsedDetailMap,
+                    tileBiomeMap = biomeNativeArrays[i]
+                };
+                //Schedule the job
+                generateDetailsHandle = generateDetailsJob.Schedule(tDatas[tileNumber].detailHeight * tDatas[tileNumber].detailWidth, 128);
+                //Wait until the job is completed
+                yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
+                //Call the job to force completion because Unity throws an error if an attempt is made to access te jobs values without a Complete() call
+                generateDetailsHandle.Complete();
+                //Wait till the end of the frame
+                yield return new WaitForEndOfFrame();
+
+                //Define a temporary detail map
+                int[,] DetailMap = new int[tDatas[tileNumber].detailHeight, tDatas[tileNumber].detailWidth];
+                //Construct the NativeArray into a 2D map
+                for (int y = 0; y < tDatas[tileNumber].detailHeight; y++)
+                {
+                    for (int x = 0; x < tDatas[tileNumber].detailWidth; x++)
+                    {
+                        //Flip Y and X because had to do it with texturing I guess
+                        DetailMap[y, x] = generateDetailsJob.collapsedDetailMap[y * tDatas[tileNumber].detailHeight + x];
+                    }
+                }
+            //Set the detail layer - only layer 0 for now
+            if (tDatas[tileNumber].detailPrototypes.Length != 0)
+            {
+                tDatas[tileNumber].SetDetailLayer(0, 0, 0, DetailMap);
+            }
+                //Dispose of the detail map
+                collapsedDetailMap.Dispose();
+            }
+
+
+            //After everything, enable the GPUIManager
+            GPUIManagerObject.SetActive(true);
+            //Pause till the end of the frame
+            yield return new WaitForEndOfFrame();
+            //Dispose of the biomes maps
+            for (int i = 0; i < biomeNativeArrays.Count; i++)
+            {
+                biomeNativeArrays[i].Dispose();
+            }
+
+            #endregion
+        
+        //For mass tile generation
+        moveNext = true;
         yield break;
     }
 
+
+
+
+
+
+  
+
+    //Method that generates all the objects that a tile will have
     private IEnumerator generateObjects()
     {
         //Calculate the max weights from each biome
@@ -566,7 +753,7 @@ public class WorldGen : MonoBehaviour
                     for (int i = 0; i < biomeStorage.biomes.Length; i++)
                     {
                         //Check if that biome exists on this terrain tile. If it doesn't, continue and skip this tile.
-                        if (biomesPerTerrainTile[i, currentTile] == 0)
+                        if (biomesPerTerrainTile[currentTile][i] == 0)
                         {
                           //Do nothing
                         }
@@ -721,7 +908,9 @@ public class WorldGen : MonoBehaviour
         yield break;
     }
     
+    
 }
+
 
 
 
