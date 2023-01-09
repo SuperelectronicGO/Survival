@@ -12,17 +12,18 @@ using GPUInstancer;
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-
+    
     //Jobhandles for the generateSplat job and the generateDetails job
     JobHandle generateSplatHandle;
     JobHandle generateDetailsHandle;
     //Store references
     generateSplat generateSplatJob;
     generateDetails generateDetailsJob;
-   
-    
 
-  
+    //TODO - DISPLAY THESE!
+    public float[,] splatMapDis = new float[1025,1025];
+    public int[,] detailMapDis;
+    public MapDisplay d;
 
     [Header("Generation Parts")]
     public bool generateTerrain = true;
@@ -150,10 +151,24 @@ public class WorldGen : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            d.DrawNoiseMap(splatMapDis);
 
+        }
         if (Input.GetKeyDown(KeyCode.Y))
         {
-            StartCoroutine(GPUIIntitialization());
+
+            int[,] convertedDetailMap = tDatas[1].GetDetailLayer(0, 0, 1024, 1024, 0);
+            float[,] cMap = new float[1024, 1024];
+            for (int y=0; y<1024; y++)
+            {
+                for (int x = 0; x < 1024; x++)
+                {
+                    cMap[x, y] = convertedDetailMap[x, y];
+                }
+            }
+            d.DrawNoiseMap(cMap);
         }
         if (Input.GetKeyDown(KeyCode.U))
         {
@@ -255,7 +270,7 @@ public class WorldGen : MonoBehaviour
         {
             StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num));
             yield return new WaitUntil(() => moveNext = true);
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(1.1f);
             num += 1;
             moveNext = false;
             Debug.Log("Finished tile " + (num-1));
@@ -391,25 +406,33 @@ public class WorldGen : MonoBehaviour
                 }
                 
                 }
-
-            }
+          
+        }
 }
 
     //Job that generates the detail maps for a terrain tile
     [BurstCompile]
     private struct generateDetails : IJobParallelFor
     {
-        //NativeArray storing the detail map in 1D
+        //NativeArray storing the detail map in 1D. 1025x1025 even though detail is 1024x1024 to make room for splatmap
         public NativeArray<int> collapsedDetailMap;
         //NativeArray storing the biome texture map in 1D
         public NativeArray<float> tileBiomeMap;
-
+        //Density that this detail should generate as
+        public int detailDensity;
+        //Chance of the object spawning here
+        public int spawnChance;
+        //Random number for generator
+        public Unity.Mathematics.Random randomInt;
+        
         public void Execute(int i)
         {
-          //  if (tileBiomeMap[i] != 0)
-          //  {
-                collapsedDetailMap[i] = 2;
-          //  }
+
+             if (tileBiomeMap[i]==1&&randomInt.NextUInt(0,1001)<spawnChance) {
+                collapsedDetailMap[i] = detailDensity;
+              
+            }
+          
         }
 
 
@@ -494,7 +517,7 @@ public class WorldGen : MonoBehaviour
                 maxHum = biomeStorage.biomes[m].maxHum,
                 minTemp = biomeStorage.biomes[m].minTemp,
                 maxTemp = biomeStorage.biomes[m].maxTemp,
-
+                
             };
 
 
@@ -502,6 +525,7 @@ public class WorldGen : MonoBehaviour
             generateSplatHandle = generateSplatJob.Schedule(biomeNativeArrays[m].Length, 128);
             //Pause to not stutter frames
             yield return new WaitUntil(() => generateSplatHandle.IsCompleted == true);
+            yield return new WaitForEndOfFrame();
             generateSplatHandle.Complete();
             yield return new WaitForEndOfFrame();
             
@@ -515,6 +539,10 @@ public class WorldGen : MonoBehaviour
 
 
                     splatMap[y, x, m] = generateSplatJob.positions[(y * 1025) + x];
+                    if (m == 0&&tileNumber==1)
+                    {
+                        splatMapDis[y,x] = generateSplatJob.positions[(y * 1025) + x];
+                    }
                     if (splatMap[y, x, m] != 0)
                     {
                         //Update the array of what tiles have what biome at biome M for X and terrain CURRENTTERRAININDEX for Y
@@ -527,10 +555,10 @@ public class WorldGen : MonoBehaviour
                     yield return new WaitForEndOfFrame();
                 }
             }
-
-
+            biomeNativeArrays[m] = generateSplatJob.positions;
+            
             yield return new WaitForEndOfFrame();
-
+            
             
 
         }
@@ -539,7 +567,7 @@ public class WorldGen : MonoBehaviour
         tDatas[tileNumber].SetAlphamaps(0, 0, splatMap);
         //Store SplatMap
         biomeSplatList.Add(splatMap);
-        Debug.Log("got here");
+        
 
 
 
@@ -562,7 +590,7 @@ public class WorldGen : MonoBehaviour
             }
 
             //If it does, add each detail in this biome to the list of details
-            for(int j=0; j<biomeStorage.biomes[i].details.Length; i++)
+            for(int j=0; j<biomeStorage.biomes[i].details.Length; j++)
             {
                 //Fill in settings
                 DetailPrototype proto = new DetailPrototype();
@@ -593,42 +621,46 @@ public class WorldGen : MonoBehaviour
         //Assign detail prototypes to this terrains as an array
         tDatas[tileNumber].detailPrototypes = new DetailPrototype[0];
         tDatas[tileNumber].detailPrototypes = terrainDetailPrototypes.ToArray();
-        
-            //Create a new gameobject to be the detail manager
-            GameObject GPUIManagerObject = new GameObject();
-            //Disable the object so we can set all of the references and so generation is done before it enables
-            GPUIManagerObject.SetActive(false);
-            //Name the detail manager to be the GPUI for that terrain tile
-            GPUIManagerObject.name = "GPUI for " + terrains[tileNumber].name;
-            //Set the detail manager to be the child of its terrain
-            GPUIManagerObject.transform.parent = terrains[tileNumber].transform;
-            //Add the GPUInstancerDetailManager class to the object
-            GPUInstancerDetailManager detailManager = GPUIManagerObject.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
-            //Set the terrain of the manager
-            detailManager.AddTerrain(terrains[tileNumber]);
-            //Call the GPUInstancer API function to sync the terrain with the manager
-            GPUInstancerAPI.SetupManagerWithTerrain(detailManager, terrains[tileNumber]);
-            //Fill in settings to the detail manager
-            detailManager.runInThreads = true;
-            detailManager.isFrustumCulling = true;
-            detailManager.isOcclusionCulling = true;
-            detailManager.terrainSettings.maxDetailDistance = 500;
-            detailManager.terrainSettings.autoSPCellSize = true;
+        //Create a new gameobject to be the detail manager
+        GameObject GPUIManagerObject = new GameObject();
+        //Disable the object so we can set all of the references and so generation is done before it enables
+        //After everything, enable the GPUIManager
+        GPUIManagerObject.SetActive(false);
+        //Name the detail manager to be the GPUI for that terrain tile
+        GPUIManagerObject.name = "GPUI for " + terrains[tileNumber].name;
+        //Set the detail manager to be the child of its terrain
+        GPUIManagerObject.transform.parent = terrains[tileNumber].transform;
+        //Add the GPUInstancerDetailManager class to the object
+        GPUInstancerDetailManager detailManager = GPUIManagerObject.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
+        //Set the camera of the manager
+        detailManager.SetCamera(Camera.main);
+        //Set the terrain of the manager
+        detailManager.AddTerrain(terrains[tileNumber]);
+        //Call the GPUInstancer API function to sync the terrain with the manager
+        detailManager.SetupManagerWithTerrain(terrains[tileNumber]);
+        //Fill in settings to the detail manager
+        detailManager.runInThreads = true;
+        detailManager.isFrustumCulling = true;
+        detailManager.isOcclusionCulling = true;
+        detailManager.terrainSettings.maxDetailDistance = 500;
+        detailManager.terrainSettings.autoSPCellSize = true;
 
-            //Generate a new scriptableObject to set as the managers terrain settings
-            detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
+        //Generate a new scriptableObject to set as the managers terrain settings
+        detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
 
 
-            //Setup each detail protoype on the manager. Later, each of these will inherit its values from my own scriptableObjects
-            for (int i = 0; i < detailManager.prototypeList.Count; i++)
-            {
-                currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
-                currentDetailPrototype.quadCount = 4;
-                
-            }
+        //Setup each detail protoype on the manager. Later, each of these will inherit its values from my own scriptableObjects
+        for (int i = 0; i < detailManager.prototypeList.Count; i++)
+        {
+            currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
+            currentDetailPrototype.quadCount = 4;
 
-            //Generate the detail maps for each of the details
-            for (int i = 0; i < biomeStorage.biomes.Length; i++)
+        }
+
+        //Int to store the offset of this details map
+        int detailIndexOffset = 0;
+        //Generate the detail maps for each of the details
+        for (int i = 0; i < biomeStorage.biomes.Length; i++)
             {
                 //Check to see if this terrain tile has this biome
                 if (biomesPerTerrainTile[tileNumber][i] == 0)
@@ -638,16 +670,30 @@ public class WorldGen : MonoBehaviour
                 }
 
 
-                //If the biome does exist, create a job to set its details
-                //Define a NativeArray that will hold the collapsed detail map
-                NativeArray<int> collapsedDetailMap = new NativeArray<int>(tDatas[tileNumber].detailHeight * tDatas[tileNumber].detailWidth, Allocator.Persistent);
+            //If the biome does exist, create a job to set its details
+            //Define a NativeArray that will hold the collapsed detail map
+            //1025x1025 even though detail is 1024x1024 to make room for splatmap
+            NativeArray<int> collapsedDetailMap = new NativeArray<int>((tDatas[tileNumber].detailHeight+1) * (tDatas[tileNumber].detailWidth+1), Allocator.Persistent);
+            //Create a new random struct for placement
+            Unity.Mathematics.Random randomInt = new Unity.Mathematics.Random();
+            randomInt.InitState((uint)System.DateTime.Now.Ticks);
+            //Generate a detail map for each detail layer
+            
+            for (int detailIndex = 0; detailIndex < biomeStorage.biomes[i].details.Length; detailIndex++)
+            {
+                DetailObjectScriptable settings = biomeStorage.biomes[i].details[detailIndex];
                 generateDetailsJob = new generateDetails
                 {
                     collapsedDetailMap = collapsedDetailMap,
-                    tileBiomeMap = biomeNativeArrays[i]
+                    tileBiomeMap = biomeNativeArrays[i],
+                    detailDensity = settings.detailDensity,
+                    spawnChance = settings.spawnChance,
+                    randomInt = randomInt
+                    
                 };
                 //Schedule the job
-                generateDetailsHandle = generateDetailsJob.Schedule(tDatas[tileNumber].detailHeight * tDatas[tileNumber].detailWidth, 128);
+                //1025x1025 even though detail is 1024x1024 to make room for splatmap
+                generateDetailsHandle = generateDetailsJob.Schedule((tDatas[tileNumber].detailHeight+1) * (tDatas[tileNumber].detailWidth+1), 128);
                 //Wait until the job is completed
                 yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
                 //Call the job to force completion because Unity throws an error if an attempt is made to access te jobs values without a Complete() call
@@ -658,36 +704,48 @@ public class WorldGen : MonoBehaviour
                 //Define a temporary detail map
                 int[,] DetailMap = new int[tDatas[tileNumber].detailHeight, tDatas[tileNumber].detailWidth];
                 //Construct the NativeArray into a 2D map
-                for (int y = 0; y < tDatas[tileNumber].detailHeight; y++)
+                //1025 because res of splatmap
+                for (int y = 0; y < 1024; y++)
                 {
-                    for (int x = 0; x < tDatas[tileNumber].detailWidth; x++)
+                   
+                    for (int x = 0; x < 1024; x++)
                     {
-                        //Flip Y and X because had to do it with texturing I guess
-                        DetailMap[y, x] = generateDetailsJob.collapsedDetailMap[y * tDatas[tileNumber].detailHeight + x];
+
+
+                        // DetailMap[y,x] = generateDetailsJob.collapsedDetailMap[(y * tDatas[tileNumber].detailHeight) + x];
+                        DetailMap[y, x] = generateDetailsJob.collapsedDetailMap[(y * 1025) + x];
+
                     }
                 }
-            //Set the detail layer - only layer 0 for now
-            if (tDatas[tileNumber].detailPrototypes.Length != 0)
-            {
-                tDatas[tileNumber].SetDetailLayer(0, 0, 0, DetailMap);
-            }
+               
+                //Set the detail layer
+
+                tDatas[tileNumber].SetDetailLayer(0, 0, detailIndex+detailIndexOffset, DetailMap);
+                
                 //Dispose of the detail map
                 collapsedDetailMap.Dispose();
             }
-
-
-            //After everything, enable the GPUIManager
-            GPUIManagerObject.SetActive(true);
-            //Pause till the end of the frame
-            yield return new WaitForEndOfFrame();
+            //After doing all the details in a biome, increase the detailIndexOffset
+            detailIndexOffset += biomeStorage.biomes[i].details.Length;
+            
+            }
+        yield return new WaitForEndOfFrame();
+        
+        //Pause till the end of the frame
+        yield return new WaitForEndOfFrame();
             //Dispose of the biomes maps
             for (int i = 0; i < biomeNativeArrays.Count; i++)
             {
                 biomeNativeArrays[i].Dispose();
             }
+        //After everything, enable the GPUIManager
+        GPUIManagerObject.SetActive(true);
+        yield return new WaitForEndOfFrame();
+        GPUIManagerObject.SetActive(false);
+        yield return new WaitForEndOfFrame();
+        GPUIManagerObject.SetActive(true);
+        #endregion
 
-            #endregion
-        
         //For mass tile generation
         moveNext = true;
         yield break;

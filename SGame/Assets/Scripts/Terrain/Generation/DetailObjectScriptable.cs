@@ -22,10 +22,13 @@ public class DetailObjectScriptable : ScriptableObject
     [Header("Mesh/Texture")]
     public GameObject prototypeMesh;
     public Texture2D prototypeTexture;
-    [Header("GPUI Settings")]
+    [Header("Detail Settings")]
     [Range(2, 4)]
     public int quadCount = 2;
-    
+    [Range(1, 5)]
+    public int detailDensity=1;
+    [Range(0, 1000)]
+    public int spawnChance=0;
     
   
 }
