@@ -147,13 +147,14 @@ public class WorldGen : MonoBehaviour
 
        
     }
-
+   
     // Update is called once per frame
     void Update()
     {
+      
         if (Input.GetKeyDown(KeyCode.T))
         {
-            d.DrawNoiseMap(splatMapDis);
+            StartCoroutine(test());
 
         }
         if (Input.GetKeyDown(KeyCode.Y))
@@ -269,8 +270,8 @@ public class WorldGen : MonoBehaviour
         while (num < tDatas.Count)
         {
             StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num));
-            yield return new WaitUntil(() => moveNext = true);
-            yield return new WaitForSeconds(1.1f);
+            yield return new WaitUntil(() => moveNext == true);
+            
             num += 1;
             moveNext = false;
             Debug.Log("Finished tile " + (num-1));
@@ -437,8 +438,16 @@ public class WorldGen : MonoBehaviour
 
 
     }
- 
 
+    private IEnumerator test()
+    {
+        for(int i=0; i<100; i++)
+        {
+            Debug.Log(i);
+            yield return new WaitForSeconds(0.3f);
+        }
+        yield break;
+    }
     //Method that generates a terrain tile
     private IEnumerator generateTerrainTile(Terrain terrain, Transform terrainParent, int tileNumber)
     {
@@ -464,10 +473,6 @@ public class WorldGen : MonoBehaviour
         //List of detail prototypes for this terrain
         List<DetailPrototype> terrainDetailPrototypes = new List<DetailPrototype>();
         #endregion
-
-
-
-
 
         //Log this tile in the terrain tile biome list
         biomesPerTerrainTile.Add(new int[biomeStorage.biomes.Length]);
@@ -516,19 +521,18 @@ public class WorldGen : MonoBehaviour
                 minHum = biomeStorage.biomes[m].minHum,
                 maxHum = biomeStorage.biomes[m].maxHum,
                 minTemp = biomeStorage.biomes[m].minTemp,
-                maxTemp = biomeStorage.biomes[m].maxTemp,
+                maxTemp = biomeStorage.biomes[m].maxTemp
                 
             };
 
 
             //Schedule the job
-            generateSplatHandle = generateSplatJob.Schedule(biomeNativeArrays[m].Length, 128);
+            generateSplatHandle = generateSplatJob.Schedule(biomeNativeArrays[m].Length, 64);
             //Pause to not stutter frames
             yield return new WaitUntil(() => generateSplatHandle.IsCompleted == true);
-            yield return new WaitForEndOfFrame();
             generateSplatHandle.Complete();
-            yield return new WaitForEndOfFrame();
-            
+            yield return new WaitForSecondsRealtime(0.05f);
+
 
             //Copy float values to terrain array
             for (int y = 0; y < 1025; y++)
@@ -575,11 +579,12 @@ public class WorldGen : MonoBehaviour
         
         tempNative.Dispose();
         humidNative.Dispose();
-        
+
         #endregion
 
         #region Details
-
+        //Store an array of what detail prototypes are used and their settings
+        List<int> crossQuadCounts = new List<int>();
         //Get a list of all the detail prototypes we will use for this terrain
         for(int i=0; i<biomeStorage.biomes.Length; i++)
         {
@@ -612,6 +617,7 @@ public class WorldGen : MonoBehaviour
                 else
                 {
                     proto.prototypeTexture = settings.prototypeTexture;
+                    crossQuadCounts.Add(settings.quadCount);
                 }
                 
                 terrainDetailPrototypes.Add(proto);
@@ -653,13 +659,15 @@ public class WorldGen : MonoBehaviour
         for (int i = 0; i < detailManager.prototypeList.Count; i++)
         {
             currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
-            currentDetailPrototype.quadCount = 4;
+            currentDetailPrototype.quadCount = crossQuadCounts[i];
 
         }
 
         //Int to store the offset of this details map
         int detailIndexOffset = 0;
         //Generate the detail maps for each of the details
+
+
         for (int i = 0; i < biomeStorage.biomes.Length; i++)
             {
                 //Check to see if this terrain tile has this biome
@@ -671,9 +679,7 @@ public class WorldGen : MonoBehaviour
 
 
             //If the biome does exist, create a job to set its details
-            //Define a NativeArray that will hold the collapsed detail map
-            //1025x1025 even though detail is 1024x1024 to make room for splatmap
-            NativeArray<int> collapsedDetailMap = new NativeArray<int>((tDatas[tileNumber].detailHeight+1) * (tDatas[tileNumber].detailWidth+1), Allocator.Persistent);
+            
             //Create a new random struct for placement
             Unity.Mathematics.Random randomInt = new Unity.Mathematics.Random();
             randomInt.InitState((uint)System.DateTime.Now.Ticks);
@@ -681,6 +687,9 @@ public class WorldGen : MonoBehaviour
             
             for (int detailIndex = 0; detailIndex < biomeStorage.biomes[i].details.Length; detailIndex++)
             {
+                //Define a NativeArray that will hold the collapsed detail map
+                //1025x1025 even though detail is 1024x1024 to make room for splatmap
+                NativeArray<int> collapsedDetailMap = new NativeArray<int>((tDatas[tileNumber].detailHeight + 1) * (tDatas[tileNumber].detailWidth + 1), Allocator.Persistent);
                 DetailObjectScriptable settings = biomeStorage.biomes[i].details[detailIndex];
                 generateDetailsJob = new generateDetails
                 {
@@ -739,10 +748,8 @@ public class WorldGen : MonoBehaviour
                 biomeNativeArrays[i].Dispose();
             }
         //After everything, enable the GPUIManager
-        GPUIManagerObject.SetActive(true);
-        yield return new WaitForEndOfFrame();
-        GPUIManagerObject.SetActive(false);
-        yield return new WaitForEndOfFrame();
+        
+        yield return new WaitForSecondsRealtime(0.05f);
         GPUIManagerObject.SetActive(true);
         #endregion
 
