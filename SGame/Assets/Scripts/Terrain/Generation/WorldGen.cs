@@ -12,14 +12,18 @@ using GPUInstancer;
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-    
+    public int vorSeed;
+    public int2 vorOffset = new int2(0, 0);
+    [Header("Speed")]
+    public GenerationSpeedSettings currentSpeedSettings;
+    #region jobs
     //Jobhandles for the generateSplat job and the generateDetails job
     JobHandle generateSplatHandle;
     JobHandle generateDetailsHandle;
     //Store references
     generateSplat generateSplatJob;
     generateDetails generateDetailsJob;
-
+    #endregion
     //TODO - DISPLAY THESE!
     public float[,] splatMapDis = new float[1025,1025];
     public int[,] detailMapDis;
@@ -28,11 +32,15 @@ public class WorldGen : MonoBehaviour
     [Header("Generation Parts")]
     public bool generateTerrain = true;
     public bool textureTerrain = true;
+
+    #region noisemap settings
     [Header("Noisemap Settings")]
     public bool randomSeed = true;
     public NoisemapSettingsScriptable tempMapSettings;
     public NoisemapSettingsScriptable humidMapSettings;
     public NoisemapSettingsScriptable biomeDensityMapSettings;
+    public VoronoiSettingsScriptable subBiomeMapSettings;
+    #endregion
 
     [Header("Data")]
     //Component that controls the generation screen
@@ -65,15 +73,20 @@ public class WorldGen : MonoBehaviour
     public List<int[]> biomesPerTerrainTile = new List<int[]>();
     //Arrays storing the max weights for all objects in each biome, so we don't have to calculate it every tile later
     public int[] maxObjectWeights;
-    //Lists of the temperature and humidity maps
+    //Lists of the temperature and humidity maps - WILL GET REMOVED
     List<float[,]> tMapList = new List<float[,]>();
     List<float[,]> hMapList = new List<float[,]>();
-    //List of biome splatMaps
+    //List of biome splatMaps - WILL GET REMOVED
     List<float[,,]> biomeSplatList = new List<float[,,]>();
-    //List of biome density maps
+    //List of biome density maps - WILL GET REMOVED
     List<float[,]> biomeDensityMapList = new List<float[,]>();
-    public Texture2D healthyDryNoiseTexture;
 
+
+    #region temporary data (voronoi)
+    private float[,] tempVoronoiMap = null;
+    private bool voronoiFinishCompletion = false;
+    private float[,] t2 = new float[1024, 2048];
+    #endregion
 
 
 
@@ -147,11 +160,27 @@ public class WorldGen : MonoBehaviour
 
        
     }
-   
+    int order = 0;
     // Update is called once per frame
     void Update()
     {
-      
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            // d.DrawNoiseMap(TerrainNoise.GenerateVoronoiMap(512, 5, (uint)vorSeed));
+            voronoiFinishCompletion = false;
+            
+            StartCoroutine(GenerateTileVoronoiMap(1024, 7, (uint)vorSeed, vorOffset,order));
+            
+        }
+        if (voronoiFinishCompletion)
+        {
+            order += 1;
+            Debug.Log("lolz");
+            voronoiFinishCompletion = false;
+            //DRAW NOISE MAP
+            d.DrawNoiseMap(t2);
+
+        }
         if (Input.GetKeyDown(KeyCode.T))
         {
             StartCoroutine(test());
@@ -265,6 +294,7 @@ public class WorldGen : MonoBehaviour
     bool moveNext = false;
     private IEnumerator initialTerrainGeneration()
     {
+        
         int num = 0;
         beforeTerrainGeneration();
         while (num < tDatas.Count)
@@ -277,7 +307,7 @@ public class WorldGen : MonoBehaviour
             Debug.Log("Finished tile " + (num-1));
         }
 
-
+        
         yield break;
     }
 
@@ -410,7 +440,7 @@ public class WorldGen : MonoBehaviour
           
         }
 }
-
+    
     //Job that generates the detail maps for a terrain tile
     [BurstCompile]
     private struct generateDetails : IJobParallelFor
@@ -425,13 +455,29 @@ public class WorldGen : MonoBehaviour
         public int spawnChance;
         //Random number for generator
         public Unity.Mathematics.Random randomInt;
-        
+        //Does this generate in clumps?
+        public bool generateInPatches;
+        //Patch size
+        public float patchCutoff;
+        //Noisemap for patches
+        public NativeArray<float> patchNoisemap;
         public void Execute(int i)
         {
 
-             if (tileBiomeMap[i]==1&&randomInt.NextUInt(0,1001)<spawnChance) {
-                collapsedDetailMap[i] = detailDensity;
-              
+            if (tileBiomeMap[i] != 0 && randomInt.NextUInt(0, 1001) < (spawnChance * tileBiomeMap[i])) {
+                if (!generateInPatches)
+                {
+                    collapsedDetailMap[i] = detailDensity;
+                }
+                else
+                {
+
+                    if (generateInPatches && patchNoisemap[i] > patchCutoff)
+                    {
+                        collapsedDetailMap[i] = detailDensity;
+                    }
+                }
+                
             }
           
         }
@@ -472,6 +518,12 @@ public class WorldGen : MonoBehaviour
         GPUInstancerDetailPrototype currentDetailPrototype = null;
         //List of detail prototypes for this terrain
         List<DetailPrototype> terrainDetailPrototypes = new List<DetailPrototype>();
+
+        List<float[,,]> stripList = new List<float[,,]>();
+        int remainder = (1025 % currentSpeedSettings.splatmapStrips);
+        
+        int pixelsPerStrip = (1025 - remainder) / currentSpeedSettings.splatmapStrips;
+        int pixelsSetPerStrip = 0;
         #endregion
 
         //Log this tile in the terrain tile biome list
@@ -501,12 +553,33 @@ public class WorldGen : MonoBehaviour
 
 
             }
-            if (y % 250 == 0)
+            if (y % currentSpeedSettings.maxIterationsPerFrame == 0)
             {
                 yield return new WaitForEndOfFrame();
             }
         }
+        //PixelOffset is the index offset of the strip when compared to the main map
+        int pixelOffset = 0;
+        //Create a new float[,,] for each strip we will use
+        for (int stripNumber = 0; stripNumber < currentSpeedSettings.splatmapStrips+1; stripNumber++)
+        {
+            
+            //Define the strip width dependant on iteration
+            if (stripNumber == currentSpeedSettings.splatmapStrips)
+            {
+                pixelsSetPerStrip = remainder;
+            }
+            else
+            {
+                pixelsSetPerStrip = pixelsPerStrip;
+            }
+            //Add to list
+            float[,,] strip = new float[pixelsSetPerStrip,1025, biomeStorage.biomes.Length];
+            stripList.Add(strip);
 
+        }
+
+        
         for (int m = 0; m < biomeStorage.biomes.Length; m++)
         {
             
@@ -516,6 +589,7 @@ public class WorldGen : MonoBehaviour
             generateSplatJob = new generateSplat()
             {
                 positions = biomeNativeArrays[m],
+                // tempPositions = tempNative,
                 tempPositions = tempNative,
                 humPositions = humidNative,
                 minHum = biomeStorage.biomes[m].minHum,
@@ -533,32 +607,57 @@ public class WorldGen : MonoBehaviour
             generateSplatHandle.Complete();
             yield return new WaitForSecondsRealtime(0.05f);
 
-
-            //Copy float values to terrain array
-            for (int y = 0; y < 1025; y++)
+            
+            //Copy float values to terrain array, and the list of array strips to set the splatmaps as
+            for(int stripNumber = 0; stripNumber<currentSpeedSettings.splatmapStrips+1; stripNumber++)
             {
-                for (int x = 0; x < 1025; x++)
+
+                
+
+                //Define the strip width dependant on iteration
+                if (stripNumber == currentSpeedSettings.splatmapStrips)
                 {
-
-
-
-                    splatMap[y, x, m] = generateSplatJob.positions[(y * 1025) + x];
-                    if (m == 0&&tileNumber==1)
-                    {
-                        splatMapDis[y,x] = generateSplatJob.positions[(y * 1025) + x];
-                    }
-                    if (splatMap[y, x, m] != 0)
-                    {
-                        //Update the array of what tiles have what biome at biome M for X and terrain CURRENTTERRAININDEX for Y
-                        biomesPerTerrainTile[tileNumber][m] = 1;
-                    }
-
+                    pixelsSetPerStrip = remainder;
+                   
+                 
                 }
-                if (y % 250 == 0)
+                else
+                {
+                    pixelsSetPerStrip = pixelsPerStrip;
+                    
+                }
+                
+                //Set the map
+                for (int y=0; y<pixelsSetPerStrip; y++)
+                {
+                    
+                    for (int x=0; x<1025; x++)
+                    {
+                        //Set the strip
+                        
+                            stripList[stripNumber][y, x, m] = generateSplatJob.positions[((y + pixelOffset) * 1025) + x];
+                            
+                       
+                        
+                        //  stripList[stripNumber][y, x, 0] = 0;
+                        //And set the stored splatmap
+                        splatMap[y + pixelOffset, x, m] = generateSplatJob.positions[((y + pixelOffset) * 1025) + x];
+                        if(splatMap[y+pixelOffset,x,m] != 0)
+                        {
+                            biomesPerTerrainTile[tileNumber][m] = 1;
+                        }
+                    }
+                }
+                pixelOffset += pixelsSetPerStrip;
+                if (stripNumber % currentSpeedSettings.maxLoopBeforeWait == 0)
                 {
                     yield return new WaitForEndOfFrame();
                 }
+
             }
+            
+            pixelOffset = 0;
+          
             biomeNativeArrays[m] = generateSplatJob.positions;
             
             yield return new WaitForEndOfFrame();
@@ -568,7 +667,18 @@ public class WorldGen : MonoBehaviour
         }
 
         //Update terrain tile
-        tDatas[tileNumber].SetAlphamaps(0, 0, splatMap);
+        int yOffset = 0;
+        for(int stripNumber = 0; stripNumber < currentSpeedSettings.splatmapStrips+1; stripNumber++)
+        {
+            tDatas[tileNumber].SetAlphamaps(0, yOffset, stripList[stripNumber]);
+            yOffset += pixelsPerStrip;
+            if (stripNumber % currentSpeedSettings.maxLoopBeforeWait == 0)
+            {
+                yield return new WaitForEndOfFrame();
+            }
+        }
+        //tDatas[tileNumber].SetAlphamaps(0, 0, splatMap);
+        
         //Store SplatMap
         biomeSplatList.Add(splatMap);
         
@@ -598,7 +708,9 @@ public class WorldGen : MonoBehaviour
             for(int j=0; j<biomeStorage.biomes[i].details.Length; j++)
             {
                 //Fill in settings
+                
                 DetailPrototype proto = new DetailPrototype();
+                
                 DetailObjectScriptable settings = biomeStorage.biomes[i].details[j];
                 proto.healthyColor = settings.healthyColor;
                 proto.dryColor = settings.dryColor;
@@ -610,9 +722,12 @@ public class WorldGen : MonoBehaviour
                 proto.noiseSeed = settings.noiseSeed;
                 proto.noiseSpread = settings.noiseSpread;
                 proto.usePrototypeMesh = settings.usePrototypeMesh;
+                
                 if (proto.usePrototypeMesh)
                 {
                     proto.prototype = settings.prototypeMesh;
+                    crossQuadCounts.Add(0);
+                    
                 }
                 else
                 {
@@ -644,6 +759,7 @@ public class WorldGen : MonoBehaviour
         detailManager.AddTerrain(terrains[tileNumber]);
         //Call the GPUInstancer API function to sync the terrain with the manager
         detailManager.SetupManagerWithTerrain(terrains[tileNumber]);
+        
         //Fill in settings to the detail manager
         detailManager.runInThreads = true;
         detailManager.isFrustumCulling = true;
@@ -659,7 +775,11 @@ public class WorldGen : MonoBehaviour
         for (int i = 0; i < detailManager.prototypeList.Count; i++)
         {
             currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
-            currentDetailPrototype.quadCount = crossQuadCounts[i];
+           
+            if (!currentDetailPrototype.usePrototypeMesh)
+            {
+                currentDetailPrototype.quadCount = crossQuadCounts[i];
+            }
 
         }
 
@@ -670,7 +790,7 @@ public class WorldGen : MonoBehaviour
 
         for (int i = 0; i < biomeStorage.biomes.Length; i++)
             {
-                //Check to see if this terrain tile has this biome
+                //Check to see if this terrain tile has this biome, if it doesn't, skip it
                 if (biomesPerTerrainTile[tileNumber][i] == 0)
                 {
                     //Biome doesn't exist on this tile, skip and don't generate a map for it
@@ -690,14 +810,57 @@ public class WorldGen : MonoBehaviour
                 //Define a NativeArray that will hold the collapsed detail map
                 //1025x1025 even though detail is 1024x1024 to make room for splatmap
                 NativeArray<int> collapsedDetailMap = new NativeArray<int>((tDatas[tileNumber].detailHeight + 1) * (tDatas[tileNumber].detailWidth + 1), Allocator.Persistent);
+                //Get what settings are for this detail 
                 DetailObjectScriptable settings = biomeStorage.biomes[i].details[detailIndex];
+                //Define an empty nativeArray to use for the patch noisemap
+                NativeArray<float> patchNoisemap = new NativeArray<float>(1, Allocator.Persistent);
+                //If the detail is set to generate in patches, generate a noisemap to use
+                if (settings.generationType == DetailObjectScriptable.GenerationType.Patches)
+                {
+                    patchNoisemap.Dispose();
+                    patchNoisemap = new NativeArray<float>(1025*1025, Allocator.Persistent);
+                    int2 mapDems = new int2(settings.noisemapSettings.mapWidth, settings.noisemapSettings.mapHeight);
+                    int2 tileOffset = new int2();
+                    tileOffset.x = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.x * offsetScale) / (1024/settings.noisemapSettings.mapWidth);
+                    tileOffset.y = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.z * offsetScale) / (1024/settings.noisemapSettings.mapHeight);
+                    float[,] patchMap2D = TerrainNoise.GenerateNoiseMap(mapDems, (uint)settings.noisemapSettings.seed, settings.noisemapSettings.scale, settings.noisemapSettings.octaves, settings.noisemapSettings.persistance, settings.noisemapSettings.lacunarity, tileOffset);
+                    //Convert to nativeArray
+                    int pixelsPerTileX = 4;
+                    int pixelsPerTileY = 4;
+                    for(int y=0; y<settings.noisemapSettings.mapHeight; y++)
+                    {
+                        for(int x=0; x<settings.noisemapSettings.mapWidth; x++)
+                        {
+                            if (x == settings.noisemapSettings.mapWidth)
+                            {
+                                pixelsPerTileX = 5;
+                            }
+                            if (y == settings.noisemapSettings.mapHeight)
+                            {
+                                pixelsPerTileY = 5;
+                            }
+                            for (int k = 0; k < pixelsPerTileY; k++)
+                            {
+                                for (int p = 0; p < pixelsPerTileX; p++)
+                                {
+                                    patchNoisemap[(((y*4)+k) * 1024) + ((x*4)+p)] = patchMap2D[x, y];
+                                }
+                            }
+
+
+                        }
+                    }
+                }
                 generateDetailsJob = new generateDetails
                 {
                     collapsedDetailMap = collapsedDetailMap,
                     tileBiomeMap = biomeNativeArrays[i],
                     detailDensity = settings.detailDensity,
                     spawnChance = settings.spawnChance,
-                    randomInt = randomInt
+                    randomInt = randomInt,
+                    generateInPatches = settings.generationType==DetailObjectScriptable.GenerationType.Patches,
+                    patchCutoff = settings.patchCutoff,
+                    patchNoisemap = patchNoisemap
                     
                 };
                 //Schedule the job
@@ -725,6 +888,10 @@ public class WorldGen : MonoBehaviour
                         DetailMap[y, x] = generateDetailsJob.collapsedDetailMap[(y * 1025) + x];
 
                     }
+                    if(y% currentSpeedSettings.maxIterationsPerFrame == 0)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
                
                 //Set the detail layer
@@ -733,6 +900,7 @@ public class WorldGen : MonoBehaviour
                 
                 //Dispose of the detail map
                 collapsedDetailMap.Dispose();
+                patchNoisemap.Dispose();
             }
             //After doing all the details in a biome, increase the detailIndexOffset
             detailIndexOffset += biomeStorage.biomes[i].details.Length;
@@ -748,13 +916,17 @@ public class WorldGen : MonoBehaviour
                 biomeNativeArrays[i].Dispose();
             }
         //After everything, enable the GPUIManager
-        
-        yield return new WaitForSecondsRealtime(0.05f);
-        GPUIManagerObject.SetActive(true);
+
+
+
+
+
         #endregion
 
         //For mass tile generation
+        GPUIManagerObject.SetActive(true);
         moveNext = true;
+        
         yield break;
     }
 
@@ -972,9 +1144,403 @@ public class WorldGen : MonoBehaviour
 
         yield break;
     }
-    
-    
+
+    //Voronoi map generation method that uses a coroutine in order to generate over multiple frames.
+    private IEnumerator GenerateTileVoronoiMap(int dimensions, int regionAmount, uint seed, int2 offset, int order)
+    {
+
+        //Set the offset to a different value if zero
+        if (offset.x == 0)
+        {
+            offset.x = 999999;
+        }
+        if (offset.y == 0)
+        {
+            offset.y = 999999;
+        }
+        //Define noisemap
+        float[,] noisemap = new float[dimensions, dimensions];
+        //Define 2D point array - needs to be 2 larger than the tile width in order to accomidate tiling with surrounding tiles
+        float2[,] points = new float2[(regionAmount + 2), (regionAmount + 2)];
+        //Define 2D weights array - needs to be 2 larger than the tile width in order to accomidate tiling with surrounding tiles
+        float[,] weights = new float[(regionAmount + 2), (regionAmount + 2)];
+        //Define random for the X and Y values of the main tile
+        Unity.Mathematics.Random randomX = new Unity.Mathematics.Random((uint)offset.x);
+        Unity.Mathematics.Random randomY = new Unity.Mathematics.Random((uint)offset.y);
+        Unity.Mathematics.Random tileRandom = new Unity.Mathematics.Random(randomX.NextUInt(0, 100000) + randomY.NextUInt(0, 100000) + seed);
+        uint tileOverallSeed = tileRandom.NextUInt(0, 100000);
+        //Create the same random but in a new form to get consistant values for the weights as well
+        Unity.Mathematics.Random randomWeight = new Unity.Mathematics.Random(randomX.NextUInt(0, 100000) + randomY.NextUInt(0, 100000) + seed);
+        //Define the size of the normal grid
+        int gridSize = Mathf.RoundToInt(dimensions / regionAmount);
+        //Use a for loop to iterate through all the surrounding tiles. The loop will iterate 8 times as each tile will have eight neighbors 
+        for (int i=0; i<8; i++)
+        {
+            //Define values that will be used for each statement
+            uint offsetX = 0;
+            uint offsetY = 0;
+            //Define the values of offsetX and offsetY
+            switch (i)
+            {
+                //Top left tile
+                case 0:
+                    offsetX = (uint)offset.x - 1;
+                    offsetY = (uint)offset.y + 1;
+                    break;
+                //Top middle tile
+                case 1:
+                    offsetX = (uint)offset.x;
+                    offsetY = (uint)offset.y + 1;
+                    break;
+                //Top right tile
+                case 2:
+                    offsetX = (uint)offset. x + 1;
+                    offsetY = (uint)offset.y + 1;
+                    break;
+                //Middle left tile
+                case 3:
+                    offsetX = (uint)offset.x - 1;
+                    offsetY = (uint)offset.y;
+                    break;
+                //Middle right tile
+                case 4:
+                    offsetX = (uint)offset.x + 1;
+                    offsetY = (uint)offset.y;
+                    break;
+                //Bottom left tile
+                case 5:
+                    offsetX = (uint)offset.x - 1;
+                    offsetY = (uint)offset.y - 1;
+                    break;
+                //Bottom middle tile
+                case 6:
+                    offsetX = (uint)offset.x;
+                    offsetY = (uint)offset.y - 1;
+                    break;
+                //Bottom right tile
+                case 7:
+                    offsetX = (uint)offset.x + 1;
+                    offsetY = (uint)offset.y - 1;
+                    break;
+            }
+            //Ensure the offset isn't zero
+            if(offsetX == 0)
+            {
+                offsetX = 999999;
+            }
+            if (offsetY == 0)
+            {
+                offsetY = 999999;
+            }
+            //Create the random structs based upon that offset
+            Unity.Mathematics.Random tileXRandom = new Unity.Mathematics.Random(offsetX);
+            Unity.Mathematics.Random tileYRandom = new Unity.Mathematics.Random(offsetY);
+            Unity.Mathematics.Random tileSeed = new Unity.Mathematics.Random(tileXRandom.NextUInt(0, 100000) + tileYRandom.NextUInt(0, 100000) + seed);
+            Unity.Mathematics.Random tileWeight = new Unity.Mathematics.Random(tileXRandom.NextUInt(0, 100000) + tileYRandom.NextUInt(0, 100000) + seed);
+            uint newTileSeed = tileSeed.NextUInt(0, 100000);
+
+            //Storage of the throwaways for randoms
+            float xPosition = 0;
+            float yPosition = 0;
+
+
+            Unity.Mathematics.Random xPointRandom;
+            Unity.Mathematics.Random yPointRandom;
+            uint originalNumber;
+            uint combinedNumber;
+            Unity.Mathematics.Random randomAmnts;
+            //Set the edges of the tile map. Use a switch statement to determine what values to fill in, depending on the tile
+            switch (i)
+            {
+                
+                //Top left tile - only needs one value, the top left corner
+                case 0:
+                    //Subtract one from regionAmount because the offset of the main array starts at zero, not one
+                    xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 1000));
+                    yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 2000));
+                    //Create the original number
+                    originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                    //Bitshift to free some room
+                    combinedNumber = originalNumber << 16;
+                    //Add the second number (Haha funny 'pipe equals' sign go brrrrr)
+                    combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                    //Get the seed
+                    randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+
+                    //RegionAmount * gridsize, because main tile is x+1 * gridsize and x+1 will evaluate to regionAmount at this point
+                    //The actual placement of the point should be equal to dimensions - its X or Y, as that gets it offset up from this tile
+                    xPosition = (((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions);
+                    yPosition = (((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions);
+                    points[0, 0].x = xPosition;
+                    points[0, 0].y = yPosition;
+                    weights[0, 0] = randomAmnts.NextFloat(0, 1);
+                   
+
+                    break;
+                //Top middle tile - needs the top row set except for edges
+                case 1:
+
+                   for(int tilePos=0; tilePos<regionAmount; tilePos++)
+                    {
+                        //Random structs and bitshifting
+                        xPointRandom = new Unity.Mathematics.Random((uint)((tilePos*694) + 1000));
+                        yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 2000));
+                        originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                        combinedNumber = originalNumber << 16;
+                        combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                        randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+                        //Y has 1024 subtracted from it because we want the bottom, however, X stays the same because we want those points consistant
+                        xPosition = (tilePos * gridSize) + randomAmnts.NextInt(0, gridSize);
+                        yPosition = ((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions;
+                        points[tilePos + 1, 0].x = xPosition;
+                        points[tilePos + 1, 0].y = yPosition;
+                        weights[tilePos + 1, 0] = randomAmnts.NextFloat(0, 1);
+                        
+                       
+                      
+                    }
+                           
+
+                    break;
+                //Top right tile - only needs one value, the top right corner
+                case 2:
+                    //Subtract one from regionAmount because the offset of the main array starts at zero, not one
+                    xPointRandom = new Unity.Mathematics.Random((uint)(0 + 1000));
+                    yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 2000));
+                    //Create the original number
+                    originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                    //Bitshift to free some room
+                    combinedNumber = originalNumber << 16;
+                    //Add the second number (Haha funny 'pipe equals' sign go brrrrr)
+                    combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                    //Get the seed
+                    randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+                    xPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                    yPosition = ((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions;
+                    //RegionAmount * gridsize, because main tile is x+1 * gridsize and x+1 will evaluate to regionAmount at this point
+                    points[regionAmount + 1, 0].x = xPosition;
+                    points[regionAmount + 1, 0].y = yPosition;
+                    weights[regionAmount + 1, 0] = randomAmnts.NextFloat(regionAmount, 1);
+                    
+
+                    break;
+                //Middle left tile - needs the left column set except for the edges
+                case 3:
+                    for (int tilePos = 0; tilePos < regionAmount; tilePos++)
+                    {
+                        //Random structs and bitshifting
+                        xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 1000));
+                        yPointRandom = new Unity.Mathematics.Random((uint)((tilePos * 694) + 2000));
+                        originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                        combinedNumber = originalNumber << 16;
+                        combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                        randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+                        //Set points - tilePos + 1 is the same as x + 1 on main tile
+                        xPosition = ((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions;
+                        yPosition = (tilePos * gridSize) + randomAmnts.NextInt(0, gridSize);
+                        points[0, tilePos + 1].x = xPosition;
+                        points[0, tilePos + 1].y = yPosition;
+                        weights[0, tilePos + 1] = randomAmnts.NextFloat(0, 1);
+
+
+
+                    }
+                    break;
+                //Middle right tile - needs the right column set except for the edges
+                case 4:
+                    for (int tilePos = 0; tilePos < regionAmount; tilePos++)
+                    {
+                        //Random structs and bitshifting
+                        xPointRandom = new Unity.Mathematics.Random((uint)(0 + 1000));
+                        yPointRandom = new Unity.Mathematics.Random((uint)((tilePos * 694) + 2000));
+                        originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                        combinedNumber = originalNumber << 16;
+                        combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                        randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+                        //Set points - tilePos + 1 is the same as x + 1 on main tile
+                        xPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                        yPosition = (tilePos * gridSize) + randomAmnts.NextInt(0, gridSize);
+                        points[regionAmount + 1, tilePos + 1].x = xPosition;
+                        points[regionAmount + 1, tilePos + 1].y = yPosition;
+                        weights[regionAmount + 1, tilePos + 1] = randomAmnts.NextFloat(0, 1);
+
+
+
+                    }
+                    break;
+                //Bottom left tile - only needs one value, the bottom left corner
+                case 5:
+                    //Subtract one from regionAmount because the offset of the main array starts at zero, not one
+                    xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 1000));
+                    yPointRandom = new Unity.Mathematics.Random((uint)(0 + 2000));
+                    //Create the original number
+                    originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                    //Bitshift to free some room
+                    combinedNumber = originalNumber << 16;
+                    //Add the second number (Haha funny 'pipe equals' sign go brrrrr)
+                    combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                    //Get the seed
+                    randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+
+                    //RegionAmount * gridsize, because main tile is x+1 * gridsize and x+1 will evaluate to regionAmount at this point
+                    xPosition = ((regionAmount - 1) * gridSize) + randomAmnts.NextInt(0, gridSize) - dimensions;
+                    yPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                    points[0, regionAmount + 1].x = xPosition;
+                    points[0, regionAmount + 1].y = yPosition;
+                    weights[0, regionAmount + 1] = randomAmnts.NextFloat(regionAmount, 1);
+
+                    break;
+                //Bottom middle tile - needs the bottom row set except for the edges
+                case 6:
+                    for (int tilePos = 0; tilePos < regionAmount; tilePos++)
+                    {
+                        //Random structs and bitshifting
+                        xPointRandom = new Unity.Mathematics.Random((uint)((tilePos * 694) + 1000));
+                        yPointRandom = new Unity.Mathematics.Random((uint)(0 + 2000));
+                        originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                        combinedNumber = originalNumber << 16;
+                        combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                        randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+                        //Set points - tilePos + 1 is the same as x + 1 on main tile
+                        xPosition = ((tilePos) * gridSize) + randomAmnts.NextInt(0, gridSize);
+                        yPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                        points[tilePos + 1, regionAmount + 1].x = xPosition;
+                        points[tilePos + 1, regionAmount + 1].y = yPosition;
+                        weights[tilePos + 1, regionAmount + 1] = randomAmnts.NextFloat(0, 1);
+
+
+
+                    }
+                    break;
+                //Bottom right tile - only needs one value, the bottom right corner
+                case 7:
+                    //Subtract one from regionAmount because the offset of the main array starts at zero, not one
+                    xPointRandom = new Unity.Mathematics.Random((uint)(0 + 1000));
+                    yPointRandom = new Unity.Mathematics.Random((uint)(0 + 2000));
+                    //Create the original number
+                    originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                    //Bitshift to free some room
+                    combinedNumber = originalNumber << 16;
+                    //Add the second number (Haha funny 'pipe equals' sign go brrrrr)
+                    combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                    //Get the seed
+                    randomAmnts = new Unity.Mathematics.Random(combinedNumber + newTileSeed);
+
+                    //RegionAmount * gridsize, because main tile is x+1 * gridsize and x+1 will evaluate to regionAmount at this point
+                    //This one has grid changed
+                    xPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                    yPosition = 0 + randomAmnts.NextInt(0, gridSize) + dimensions;
+                    points[regionAmount + 1, regionAmount + 1].x = xPosition;
+                    points[regionAmount + 1, regionAmount + 1].y = yPosition;
+                    weights[regionAmount + 1, regionAmount + 1] = randomAmnts.NextFloat(0, 1);
+
+                    break;
+            }
+        }
+
+
+
+
+
+        
+        //Set the middle of the tile map
+        for (int y=0; y<regionAmount; y++)
+        {
+            for(int x=0; x<regionAmount; x++)
+            {
+                //Generate random for each point - X and Y are offset by 1000 as to not attempt a zero seed
+                Unity.Mathematics.Random xPointRandom = new Unity.Mathematics.Random((uint)((x*694) + 1000));
+                Unity.Mathematics.Random yPointRandom = new Unity.Mathematics.Random((uint)((y*694) + 2000));
+                
+                uint originalNumber = (uint)xPointRandom.NextInt(0, 100000);
+                
+                uint combinedNumber = originalNumber << 16;
+                combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
+                
+                Unity.Mathematics.Random randomAmnt = new Unity.Mathematics.Random(combinedNumber+tileOverallSeed);
+               
+                //X and Y are shifted by one to create a ring that will generate with the adjacent tiles points
+                points[x+1,y+1].x = ((x)*gridSize) + randomAmnt.NextInt(0, gridSize);
+                points[x+1,y+1].y = ((y)*gridSize) + randomAmnt.NextInt(0, gridSize);
+                weights[x + 1, y + 1] = randomAmnt.NextFloat(0, 1);
+                
+            }
+            
+        }
+       
+
+
+        //Get points
+        for (int y = 0; y < dimensions; y++)
+        {
+            for (int x = 0; x < dimensions; x++)
+            {
+                float distance = float.MaxValue;
+                int2 value = 0;
+                for(int pointY=0; pointY<regionAmount+2; pointY++)
+                {
+                    for(int pointX = 0; pointX<regionAmount+2; pointX++)
+                    {
+                        if (Vector2.Distance(new Vector2(x, y), points[pointX,pointY]) < distance)
+                        {
+                            distance = Vector2.Distance(new Vector2(x, y), points[pointX,pointY]);
+                            value.x = pointX;
+                            value.y = pointY;
+                        }
+                    }
+                }
+                noisemap[x, y] = weights[value.x,value.y];
+                if (order == 0)
+                {
+                    t2[x,y+1024] = weights[value.x, value.y];
+                }
+                else
+                {
+                    t2[x, y] = weights[value.x, value.y];
+                }
+
+            }
+            if (y % (currentSpeedSettings.maxIterationsPerFrame) == 0)
+            {
+                yield return new WaitForEndOfFrame();
+            }
+        }
+
+
+
+        tempVoronoiMap = noisemap;
+        voronoiFinishCompletion = true;
+        log2DFloatarray(points);
+        yield break;
+    }
+    public static void log2DFloatarray(float2[,] ar){
+        for(int y=0; y<ar.GetLength(1); y++)
+        {
+            string logString = "";
+            string xVals = "";
+            for(int x=0; x<ar.GetLength(0); x++)
+            {
+                logString += (ar[x, y] + ", ");
+                xVals += ar[x, y].x + ", ";
+            }
+            Debug.Log("X ROW "  + ":  " + xVals);
+           
+        }
+        for (int y = 0; y < ar.GetLength(1); y++)
+        {
+            string logString = "";
+            string xVals = "";
+            for (int x = 0; x < ar.GetLength(0); x++)
+            {
+                logString += (ar[x, y] + ", ");
+                xVals += ar[x, y].y + ", ";
+            }
+            Debug.Log("Y ROW "  + ":  " + xVals);
+
+        }
+    }
 }
+
 
 
 

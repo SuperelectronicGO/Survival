@@ -23,12 +23,23 @@ public class DetailObjectScriptable : ScriptableObject
     public GameObject prototypeMesh;
     public Texture2D prototypeTexture;
     [Header("Detail Settings")]
+    public GenerationType generationType;
     [Range(2, 4)]
     public int quadCount = 2;
     [Range(1, 5)]
     public int detailDensity=1;
     [Range(0, 1000)]
     public int spawnChance=0;
-    
-  
+
+    [Header("Patch Settings")]
+    [Range(0,1)]
+    public float patchCutoff = 1;
+    public NoisemapSettingsScriptable noisemapSettings;
+
+
+    public enum GenerationType
+    {
+        Flood,
+        Patches
+    }
 }

@@ -10,8 +10,7 @@ public static class TerrainNoise
 {
     //Used when generating many maps in a row
 
-     [BurstCompile(FloatPrecision.High, FloatMode.Strict, CompileSynchronously =false, OptimizeFor =OptimizeFor.Balanced)]
-    //[BurstCompile]
+     [BurstCompile]
     public struct MapGenerationJob : IJobParallelFor
     {
         public int2 Dimensions;
@@ -61,7 +60,8 @@ public static class TerrainNoise
         }
     }
 
-    public static float[,] GenerateNoiseMap(int2 dimensions, uint seed, float scale, int octaves, float persistance, float lacunarity, int2 offset)
+  
+     public static float[,] GenerateNoiseMap(int2 dimensions, uint seed, float scale, int octaves, float persistance, float lacunarity, int2 offset)
     {
       //  Debug.Log(oOffsets[0] + ", " + oOffsets[1] + ", " + oOffsets[2] + ", " + oOffsets[3]);
         //Debug.Log("Dimensions: " + dimensions + ", octave offsets: " + oOffsets + ", scale: " + scale + ", persistance: " + persistance + ", lacunarity: " + lacunarity + ", offset" + offset);
@@ -104,6 +104,47 @@ public static class TerrainNoise
        
     }
 
+    //Modified version of voronoi generator created by Berkay Tascl. https://www.youtube.com/@berkaytasc9642
+    public static float[,] GenerateVoronoiMap(int dimensions, int regionAmount, uint seed)
+    {
+       //Define values
+       Unity.Mathematics.Random randomAmnt = new Unity.Mathematics.Random(seed);
+       float[,] noisemap = new float[dimensions,dimensions];
+       float2[] points = new float2[regionAmount];
+       float[] weights = new float[regionAmount];
+      
+       //Create random points and weights
+       for (int i = 0; i < regionAmount; i++)
+       {
+                points[i] = randomAmnt.NextFloat2(0, dimensions);
+                weights[i] = randomAmnt.NextFloat(0, 1);
+       }
+
+
+        
+        for(int y=0; y<dimensions; y++)
+        {
+            for(int x=0; x<dimensions; x++)
+            {
+                float distance = float.MaxValue;
+                int value = 0;
+                for (int i = 0; i < regionAmount; i++)
+                {
+                    if (Vector2.Distance(new Vector2(x, y), points[i]) < distance)
+                    {
+                        distance = Vector2.Distance(new Vector2(x, y), points[i]);
+                        value = i;
+                    }
+                }
+                noisemap[x, y] = weights[value];
+
+            }
+        }
+
+
+
+        return noisemap;
+    }
     private static float[,] SmoothNoiseMap(int2 dimensions, NativeArray<float> jobResult)
     {
         var result = new float[dimensions.x, dimensions.y];

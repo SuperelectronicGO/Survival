@@ -3,13 +3,13 @@ using System.Collections;
 using UnityEngine;
 using UnityEditor;
 
-[CustomEditor(typeof(RiverMeshGenerator))]
+[CustomEditor(typeof(NoisemapDisplay))]
 
-public class RiverEditor : Editor
+public class MapDisplayEditor : Editor
 {
 	public override void OnInspectorGUI()
 	{
-		RiverMeshGenerator mapGen = (RiverMeshGenerator)target;
+		NoisemapDisplay noiseDisplay = (NoisemapDisplay)target;
 
 		if (DrawDefaultInspector())
 		{
@@ -18,7 +18,7 @@ public class RiverEditor : Editor
 
 		if (GUILayout.Button("Generate"))
 		{
-			mapGen.generateMesh(true);
+			noiseDisplay.displayMap();
 		}
 	}
 }
