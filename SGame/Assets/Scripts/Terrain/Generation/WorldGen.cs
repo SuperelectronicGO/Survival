@@ -71,15 +71,14 @@ public class WorldGen : MonoBehaviour
     public BiomeStorage biomeStorage;
     //Array storing what terrain tiles have what biome. Y is the index of the terrain tile and X is a 1 or 0 depending on if the biome exists.
     public List<int[]> biomesPerTerrainTile = new List<int[]>();
+    //Healthy/Dry noise texture and normals for GPUI
+    [SerializeField]
+    private Texture2D GPUInstancerHealthyDryNoiseTexture;
+    [SerializeField]
+    private Texture2D GPUInstancerWindWaveNormalTexture;
     //Arrays storing the max weights for all objects in each biome, so we don't have to calculate it every tile later
     public int[] maxObjectWeights;
-    //Lists of the temperature and humidity maps - WILL GET REMOVED
-    List<float[,]> tMapList = new List<float[,]>();
-    List<float[,]> hMapList = new List<float[,]>();
-    //List of biome splatMaps - WILL GET REMOVED
-    List<float[,,]> biomeSplatList = new List<float[,,]>();
-    //List of biome density maps - WILL GET REMOVED
-    List<float[,]> biomeDensityMapList = new List<float[,]>();
+    
 
 
     #region temporary data (voronoi)
@@ -208,13 +207,7 @@ public class WorldGen : MonoBehaviour
           
           
         }
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-            // textureWorld();
-            StartCoroutine(generateObjects());
-
-
-        }
+       
 
         if (orderInWorldGeneration == 0)
         {
@@ -289,6 +282,16 @@ public class WorldGen : MonoBehaviour
             //Y
             humidOffsets[i].y = randomHumidSeed.NextInt(-100000, 100000);
         }
+        //Calculate the max weights from each biome
+        maxObjectWeights = new int[biomeStorage.biomes.Length];
+        //Iterate to set the max weights for each biome
+        for (int i = 0; i < biomeStorage.biomes.Length; i++)
+        {
+            for (int j = 0; j < biomeStorage.biomes[i].biomeObjects.Length; j++)
+            {
+                maxObjectWeights[i] += biomeStorage.biomes[i].biomeObjects[j].weight;
+            }
+        }
     }
     //Method that generates the initial tiles
     bool moveNext = false;
@@ -312,46 +315,6 @@ public class WorldGen : MonoBehaviour
     }
 
 
-
-    private IEnumerator GPUIIntitialization()
-    {
-        //Current terrain number
-        int iterationNumber = 0;
-        //Temporary reference to the current detail prototype scriptable object
-        GPUInstancerDetailPrototype currentDetailPrototype = null;
-       
-        
-        while (iterationNumber < terrains.Count)
-        {
-
-
-                GameObject g = new GameObject();
-                g.SetActive(false);
-                g.name = "GPUI for " + terrainParents[iterationNumber].name;
-                g.transform.parent = terrains[iterationNumber].transform;
-                GPUInstancerDetailManager detailManager = g.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
-                detailManager.AddTerrain(terrains[iterationNumber]);
-                GPUInstancerAPI.SetupManagerWithTerrain(detailManager, terrains[iterationNumber]);
-                detailManager.runInThreads = true;
-                detailManager.isFrustumCulling = true;
-                detailManager.isOcclusionCulling = true;
-                detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
-                detailManager.terrainSettings.maxDetailDistance = 500;
-                detailManager.terrainSettings.autoSPCellSize = true;
-                for (int i = 0; i < detailManager.prototypeList.Count; i++)
-                {
-                currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
-                currentDetailPrototype.quadCount = 4;
-                }
-                g.SetActive(true);
-                yield return new WaitForEndOfFrame();
-                iterationNumber += 1;
-            
-        }
-
-
-        yield break;
-    }
 
     //Job that compares the temperature and humidity maps to a biomes parameters to determine what areas of the map are that biome
     [BurstCompile]
@@ -497,16 +460,21 @@ public class WorldGen : MonoBehaviour
     //Method that generates a terrain tile
     private IEnumerator generateTerrainTile(Terrain terrain, Transform terrainParent, int tileNumber)
     {
-        #region References
+        #region References and Setup
+
+        // * * * * * Texture generation references * * * * * \\
+
         //Vector2 to hold the offset of the tile so it generates at the correct spot
-        int2 tileOffest;
+        int2 tileOffset;
         //Array size is equal to the demensions of the splatmap
         int arraySize = 1025 * 1025;
         mapDemensions = new int2(1025, 1025);
         float offsetScale = 1.024f;
-        //Create nativearrays to hold the values for our floats
+        //Create nativearrays and float[,]s to hold the values for our floats
         NativeArray<float> tempNative;
         NativeArray<float> humidNative;
+        float[,] temperatureMap;
+        float[,] humidityMap;
         //List of NativeArrays that hold the splatmaps of each biome
         List<NativeArray<float>> biomeNativeArrays = new List<NativeArray<float>>();
         //Set aside memory for these arrays
@@ -514,32 +482,56 @@ public class WorldGen : MonoBehaviour
         humidNative = new NativeArray<float>(arraySize, Allocator.Persistent);
         //Create a 3d array to hold the biome texture values for this map
         float[,,] splatMap = new float[1025, 1025, biomeStorage.biomes.Length];
+        //Setup for generating the terrain in stripts
+        List<float[,,]> stripList = new List<float[,,]>();
+        int remainder = (1025 % currentSpeedSettings.splatmapStrips);
+        int pixelsPerStrip = (1025 - remainder) / currentSpeedSettings.splatmapStrips;
+        int pixelsSetPerStrip = 0;
+
+        // * * * * * Detail generation references * * * * * \\
+
         //Reference to the GPUI detail prototype
         GPUInstancerDetailPrototype currentDetailPrototype = null;
         //List of detail prototypes for this terrain
         List<DetailPrototype> terrainDetailPrototypes = new List<DetailPrototype>();
-
-        List<float[,,]> stripList = new List<float[,,]>();
-        int remainder = (1025 % currentSpeedSettings.splatmapStrips);
         
-        int pixelsPerStrip = (1025 - remainder) / currentSpeedSettings.splatmapStrips;
-        int pixelsSetPerStrip = 0;
-        #endregion
+
+        // * * * * * Object generation references * * * * * \\
+
+        //Int to store how far the generation loop should progress before spawning again
+        int density = 8;
+        //Ints and bool to store if biome blending occurs
+        int[] tempBiomeBlend = new int[biomeStorage.biomes.Length];
+        //Changing bool to determine if a picked generation spot is blended with another biome
+        bool doBlend = false;
+        //How much weight a biome has when being blended
+        float blendAmount = 0;
+        //Demensions of the biome density map
+        int2 densityMapDimensions = new int2(257, 257);
+        //Define an array to store the current list of spawnable objects
+        GenerateableObject[] tileObjects = { };
+        //Int to keep track of the biome number selected. -1 So it throws an error if something doesn't work.
+        int biomeIndex = -1;
+        //2D float array of a tiles density
+        float[,] tileObjectDensityMap = null;
+
+        // * * * * * Before Generation Setup * * * * * \\
 
         //Log this tile in the terrain tile biome list
         biomesPerTerrainTile.Add(new int[biomeStorage.biomes.Length]);
+        #endregion
 
         #region Texturing
         //Get the offset of this tile in the world
-        tileOffest = new int2();
-        tileOffest.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale);
-        tileOffest.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale);
+        tileOffset = new int2();
+        tileOffset.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale);
+        tileOffset.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale);
         //Generate a temperature map for that tile and add it to the list
-        tMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSettings.seed, tempMapSettings.scale, tempMapSettings.octaves, tempMapSettings.persistance, tempMapSettings.lacunarity, tileOffest));
+        temperatureMap = TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)tempMapSettings.seed, tempMapSettings.scale, tempMapSettings.octaves, tempMapSettings.persistance, tempMapSettings.lacunarity, tileOffset);
         //Wait in order to not completely stall the main thread whilst all complete
         yield return new WaitForSeconds(0.03f);
         //Generate a humidity map for that tile and add it to the list
-        hMapList.Add(TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSettings.seed, humidMapSettings.scale, humidMapSettings.octaves, humidMapSettings.persistance, humidMapSettings.lacunarity, tileOffest));
+        humidityMap = TerrainNoise.GenerateNoiseMap(mapDemensions, (uint)humidMapSettings.seed, humidMapSettings.scale, humidMapSettings.octaves, humidMapSettings.persistance, humidMapSettings.lacunarity, tileOffset);
         yield return new WaitForSeconds(0.03f);
 
         //Iterate through the noisemaps and feed that value into the nativeArrays so it can travel between threads
@@ -547,8 +539,8 @@ public class WorldGen : MonoBehaviour
         {
             for (int x = 0; x < 1025; x++)
             {
-                tempNative[(y * 1025) + x] = tMapList[tileNumber][x, y];
-                humidNative[(y * 1025) + x] = hMapList[tileNumber][x, y];
+                tempNative[(y * 1025) + x] = temperatureMap[x, y];
+                humidNative[(y * 1025) + x] = humidityMap[x, y];
 
 
 
@@ -633,14 +625,8 @@ public class WorldGen : MonoBehaviour
                     
                     for (int x=0; x<1025; x++)
                     {
-                        //Set the strip
-                        
                             stripList[stripNumber][y, x, m] = generateSplatJob.positions[((y + pixelOffset) * 1025) + x];
                             
-                       
-                        
-                        //  stripList[stripNumber][y, x, 0] = 0;
-                        //And set the stored splatmap
                         splatMap[y + pixelOffset, x, m] = generateSplatJob.positions[((y + pixelOffset) * 1025) + x];
                         if(splatMap[y+pixelOffset,x,m] != 0)
                         {
@@ -677,10 +663,9 @@ public class WorldGen : MonoBehaviour
                 yield return new WaitForEndOfFrame();
             }
         }
-        //tDatas[tileNumber].SetAlphamaps(0, 0, splatMap);
+       
         
-        //Store SplatMap
-        biomeSplatList.Add(splatMap);
+        
         
 
 
@@ -742,46 +727,7 @@ public class WorldGen : MonoBehaviour
         //Assign detail prototypes to this terrains as an array
         tDatas[tileNumber].detailPrototypes = new DetailPrototype[0];
         tDatas[tileNumber].detailPrototypes = terrainDetailPrototypes.ToArray();
-        //Create a new gameobject to be the detail manager
-        GameObject GPUIManagerObject = new GameObject();
-        //Disable the object so we can set all of the references and so generation is done before it enables
-        //After everything, enable the GPUIManager
-        GPUIManagerObject.SetActive(false);
-        //Name the detail manager to be the GPUI for that terrain tile
-        GPUIManagerObject.name = "GPUI for " + terrains[tileNumber].name;
-        //Set the detail manager to be the child of its terrain
-        GPUIManagerObject.transform.parent = terrains[tileNumber].transform;
-        //Add the GPUInstancerDetailManager class to the object
-        GPUInstancerDetailManager detailManager = GPUIManagerObject.AddComponent(typeof(GPUInstancerDetailManager)) as GPUInstancerDetailManager;
-        //Set the camera of the manager
-        detailManager.SetCamera(Camera.main);
-        //Set the terrain of the manager
-        detailManager.AddTerrain(terrains[tileNumber]);
-        //Call the GPUInstancer API function to sync the terrain with the manager
-        detailManager.SetupManagerWithTerrain(terrains[tileNumber]);
         
-        //Fill in settings to the detail manager
-        detailManager.runInThreads = true;
-        detailManager.isFrustumCulling = true;
-        detailManager.isOcclusionCulling = true;
-        detailManager.terrainSettings.maxDetailDistance = 500;
-        detailManager.terrainSettings.autoSPCellSize = true;
-
-        //Generate a new scriptableObject to set as the managers terrain settings
-        detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
-
-
-        //Setup each detail protoype on the manager. Later, each of these will inherit its values from my own scriptableObjects
-        for (int i = 0; i < detailManager.prototypeList.Count; i++)
-        {
-            currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
-           
-            if (!currentDetailPrototype.usePrototypeMesh)
-            {
-                currentDetailPrototype.quadCount = crossQuadCounts[i];
-            }
-
-        }
 
         //Int to store the offset of this details map
         int detailIndexOffset = 0;
@@ -820,10 +766,10 @@ public class WorldGen : MonoBehaviour
                     patchNoisemap.Dispose();
                     patchNoisemap = new NativeArray<float>(1025*1025, Allocator.Persistent);
                     int2 mapDems = new int2(settings.noisemapSettings.mapWidth, settings.noisemapSettings.mapHeight);
-                    int2 tileOffset = new int2();
-                    tileOffset.x = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.x * offsetScale) / (1024/settings.noisemapSettings.mapWidth);
-                    tileOffset.y = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.z * offsetScale) / (1024/settings.noisemapSettings.mapHeight);
-                    float[,] patchMap2D = TerrainNoise.GenerateNoiseMap(mapDems, (uint)settings.noisemapSettings.seed, settings.noisemapSettings.scale, settings.noisemapSettings.octaves, settings.noisemapSettings.persistance, settings.noisemapSettings.lacunarity, tileOffset);
+                    int2 detailTileOffset = new int2();
+                    detailTileOffset.x = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.x * offsetScale) / (1024/settings.noisemapSettings.mapWidth);
+                    detailTileOffset.y = Mathf.RoundToInt(terrainParents[tileNumber].transform.position.z * offsetScale) / (1024/settings.noisemapSettings.mapHeight);
+                    float[,] patchMap2D = TerrainNoise.GenerateNoiseMap(mapDems, (uint)settings.noisemapSettings.seed, settings.noisemapSettings.scale, settings.noisemapSettings.octaves, settings.noisemapSettings.persistance, settings.noisemapSettings.lacunarity, detailTileOffset);
                     //Convert to nativeArray
                     int pixelsPerTileX = 4;
                     int pixelsPerTileY = 4;
@@ -910,21 +856,217 @@ public class WorldGen : MonoBehaviour
         
         //Pause till the end of the frame
         yield return new WaitForEndOfFrame();
-            //Dispose of the biomes maps
-            for (int i = 0; i < biomeNativeArrays.Count; i++)
+        //Dispose of the biomes maps
+        for (int i = 0; i < biomeNativeArrays.Count; i++)
             {
                 biomeNativeArrays[i].Dispose();
             }
-        //After everything, enable the GPUIManager
+        //Add the GPUInstancerDetailManager class to the terrain
+        GPUInstancerDetailManager detailManager = terrain.gameObject.AddComponent<GPUInstancerDetailManager>();
+        //Call the GPUInstancer API function to sync the terrain with the manager
+        detailManager.SetupManagerWithTerrain(terrains[tileNumber]);
+        //Set the camera of the manager
+        detailManager.SetCamera(Camera.main);
+        
+
+        //Fill in settings to the detail manager
+        detailManager.runInThreads = true;
+        detailManager.isFrustumCulling = true;
+        detailManager.isOcclusionCulling = true;
+        //Set terrain settings
+        detailManager.terrainSettings = ScriptableObject.CreateInstance<GPUInstancerTerrainSettings>();
+        detailManager.terrainSettings.maxDetailDistance = 600;
+        detailManager.terrainSettings.autoSPCellSize = true;
+        detailManager.terrainSettings.healthyDryNoiseTexture = GPUInstancerHealthyDryNoiseTexture;
+        detailManager.terrainSettings.windWaveNormalTexture = GPUInstancerWindWaveNormalTexture;
+        //Setup each detail protoype on the manager.
+        for (int i = 0; i < detailManager.prototypeList.Count; i++)
+        {
+            currentDetailPrototype = detailManager.prototypeList[i] as GPUInstancerDetailPrototype;
+
+            if (!currentDetailPrototype.usePrototypeMesh)
+            {
+                currentDetailPrototype.quadCount = crossQuadCounts[i];
+            }
+            currentDetailPrototype.healthyDryNoiseTexture = GPUInstancerHealthyDryNoiseTexture;
+
+        }
+        GPUInstancerAPI.InitializeGPUInstancer(detailManager);
+        yield return new WaitForEndOfFrame();
+        #endregion
+
+        #region Objects
+        tileOffset.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale) / 4;
+        tileOffset.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale) / 4;
+        //Store the location of this tile
+        Vector3 updatedTilePosition = terrain.transform.position;
+        //Generate a noisemap for the density of this tile
+        tileObjectDensityMap = TerrainNoise.GenerateNoiseMap(densityMapDimensions, (uint)biomeDensityMapSettings.seed, biomeDensityMapSettings.scale, biomeDensityMapSettings.octaves, biomeDensityMapSettings.persistance, biomeDensityMapSettings.lacunarity, tileOffset);
 
 
+        //Iterate through the tile, but increment by the set density above
+        for (int y = 0; y < tDatas[tileNumber].heightmapResolution; y += density)
+        {
+            for (int x = 0; x < tDatas[tileNumber].heightmapResolution; x += density)
+            {
+                //Reset the biome blend map
+                tempBiomeBlend = new int[biomeStorage.biomes.Length];
+                //Default doBlend to false
+                doBlend = false;
+                //Default the blendAmount to 0
+                blendAmount = 0;
+                //Loop through biomes to check which ones exist
+                for (int i = 0; i < biomeStorage.biomes.Length; i++)
+                {
+                    //Check if that biome exists on this terrain tile. If it doesn't, continue and skip this tile.
+                    if (biomesPerTerrainTile[tileNumber][i] == 0)
+                    {
+                        //Do nothing
+                    }
+                    else
+                    {
+                        //Check biome splat map at this position
+                        if (splatMap[y, x, i] != 0)
+                        {
+                            if (splatMap[y, x, i] == 1)
+                            {
+                                //The biome is not blended
+                                tileObjects = biomeStorage.biomes[i].biomeObjects;
+                                biomeIndex = i;
+                            }
+                            else
+                            {
+                                //The biome is blended, add its weight to the blend array and blendAmount, and mark that we must blend
+                                tempBiomeBlend[i] = 1;
+                                doBlend = true;
+                                blendAmount += splatMap[y, x, i];
+                            }
+                        }
+                    }
+                }
+                //If blending, decide a biome that will take prevelance at this spot (weighted by biome splatmap #)
+                if (doBlend)
+                {
+                    float thisBlend = 0;
+                    float blendNumber = Random.Range(0, blendAmount);
+                    for (int i = 0; i < biomeStorage.biomes.Length; i++)
+                    {
+                        if (splatMap[y, x, i] + thisBlend > blendNumber)
+                        {
+                            tileObjects = biomeStorage.biomes[i].biomeObjects;
+                            biomeIndex = i;
+                        }
+                        else
+                        {
+                            thisBlend += splatMap[y, x, i];
+                            break;
+                        }
+                    }
+                }
+                //As long as there is actually a biome, generate
+                if (biomeIndex != -1)
+                {
 
+
+                    //Check that there are objects in this biome
+                    if (biomeStorage.biomes[biomeIndex].biomeObjects.Length == 0)
+                    {
+                        //No objects in this biome
+                        continue;
+                    }
+                    else
+                    {
+                        //Define random chance for this object to appear
+                        int randomChance = Random.Range(0, 1000);
+                        /* The odds of this object appearing depend on the chance for its category defined above.
+                         * This number is multiplied by the value of the biome density map + 0.25 (normalized between 0 and 1, and +.25 is to still spawn at low density)
+                           to decide if an object is actually spawned at this spot. The biome density X and Y are divided by 4 as it samples a smaller map. */
+                        if (randomChance < biomeStorage.biomes[biomeIndex].biomeDensity * Mathf.Lerp(0, 1.25f, (tileObjectDensityMap[x / 4, y / 4] + 0.25f)))
+                        {
+                            //Pick a random object from the list depending on weights
+                            int randomWeight = Random.Range(0, maxObjectWeights[biomeIndex]);
+                            //Store the object we want
+                            GenerateableObject selectedOb = null;
+                            /* Object is found by: First picking a random number between 0, and the weight of all objects in this biome added up.
+                             * Then, for each object it tests if that random number is smaller than the tested objects weight PLUS all the objects that failed
+                             * selection before it          */
+                            //Value of all the failed objects before the one being tested, added up
+                            int priorWeights = 0;
+                            //Iterate through list until we find that point.
+                            for (int i = 0; i < tileObjects.Length; i++)
+                            {
+                                //Check if the random value is smaller than this weight + the failed weights
+                                if (priorWeights + tileObjects[i].weight > randomWeight)
+                                {
+                                    //If true, this object is the index we want
+                                    selectedOb = tileObjects[i];
+                                    break;
+                                }
+                                else
+                                {
+                                    //If false, the tested object failed to reach the random number, add the failed objects weight to priorWeights
+                                    priorWeights += tileObjects[i].weight;
+
+                                }
+                            }
+
+                            //Log an error if somehow an object failed to be selected
+                            if (selectedOb == null)
+                            {
+                                //How the fuck did we get here?
+                                Debug.LogError("Finished iteration and selected object to spawn is null.");
+                            }
+
+                            //Store a reference to the tiles normals for proper placement
+                            float newX = x;
+                            float newY = y;
+                            Vector3 spotNormal = tDatas[tileNumber].GetInterpolatedNormal(newX / 1025, newY / 1025);
+                            //Set the position of where the object should spawn
+                            Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[tileNumber].GetHeight(x, y) + selectedOb.yOffset, updatedTilePosition.z + (y / 1.025f));
+                            //If offsetHeightByNormals is checked, change spawn height depending on normals so roots and things don't stick out
+                            if (selectedOb.offsetHeightByNormals)
+                            {
+                                //100 is the multiple so it doesn't stick out of the terrain on large slopes
+                                spawnedPosition.y -= (1 - Mathf.Abs(spotNormal.y)) * 100;
+                            }
+                            //Rotate objects
+                            Vector3 objectRotation = Vector3.zero;
+                            //If alignNormals is checked, rotate to match the normals at this spot on the terrain
+                            if (selectedOb.alignNormals)
+                            {
+                                objectRotation = spotNormal;
+                            }
+                            //Spawn the object
+                            GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
+                            //Select a random point between 0 and 1 for the scale of the object
+                            float randomAmnt = Random.Range(0f, 1f);
+                            //Evaluate that point on the objects animation curve to get the scale of the object
+                            float newObjectScale = selectedOb.scale.Evaluate(randomAmnt);
+                            spawnedObject.transform.localScale = new Vector3(newObjectScale, newObjectScale, newObjectScale);
+                            //Name the object
+                            spawnedObject.name = selectedOb.name;
+
+                        }
+                    }
+                }
+                else
+                {
+                    //Log an error if their isn't a biome at this spot for some reason
+                    Debug.Log("Biome index at -1, no biomes exists at this spot");
+                }
+                //Timeout for a frame if we reach a certain amount of values, timeout is less often than others as density modifier means less values are computed
+                
+                if (y % (currentSpeedSettings.maxIterationsPerFrame*3) == 0)
+                {
+                    //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
+                    yield return new WaitForEndOfFrame();
+                }
+            }
+        }
 
 
         #endregion
 
-        //For mass tile generation
-        GPUIManagerObject.SetActive(true);
         moveNext = true;
         
         yield break;
@@ -937,213 +1079,7 @@ public class WorldGen : MonoBehaviour
 
   
 
-    //Method that generates all the objects that a tile will have
-    private IEnumerator generateObjects()
-    {
-        //Calculate the max weights from each biome
-        maxObjectWeights = new int[biomeStorage.biomes.Length];
-        //Iterate to set the max weights for each biome
-        for (int i = 0; i < biomeStorage.biomes.Length; i++)
-        {
-            for(int j = 0; j<biomeStorage.biomes[i].biomeObjects.Length; j++) {
-                maxObjectWeights[i]+=biomeStorage.biomes[i].biomeObjects[j].weight;
-            }
-        }
-        //How many times to run the loop initially
-        int iterations = tDatas.Count;
-        //Current index we are on
-        int currentTile = 0;
-        //Int to store how far the loop should progress before spawning again
-        int density = 8;
-        //Ints and bool to store if biome blending occurs
-        int[] tempBiomeBlend = new int[biomeStorage.biomes.Length];
-        bool doBlend = false;
-        float blendAmount = 0;
-        //Demensions of the biome density map
-        int2 densityMapDimensions = new int2(257, 257);
-        //Offset of each tile
-        int2 tileOffset;
-        float offsetScale = 1.024f;
-        while (currentTile < iterations)
-        {
-            //Define the new tileOffset - division by 4 is because each tile is 256x256, not 1024x1024
-            tileOffset = new int2();
-            tileOffset.x = Mathf.RoundToInt(terrainParents[currentTile].transform.position.x * offsetScale)/4;
-            tileOffset.y = Mathf.RoundToInt(terrainParents[currentTile].transform.position.z * offsetScale)/4;
-            //Store the location of this tile
-            Vector3 updatedTilePosition = terrains[currentTile].transform.position;
-            //Define an array to store the current list of spawnable objects
-            GenerateableObject[] tileObjects = { };
-            //Int to keep track of the biome number selected. -1 So it throws an error if something doesn't work.
-            int biomeIndex=-1;
-            //Generate a noisemap for the density of this tile
-            biomeDensityMapList.Add(TerrainNoise.GenerateNoiseMap(densityMapDimensions, (uint)biomeDensityMapSettings.seed, biomeDensityMapSettings.scale, biomeDensityMapSettings.octaves, biomeDensityMapSettings.persistance, biomeDensityMapSettings.lacunarity, tileOffset));
-            //Loop through points on the heightmap to spawn objects
-            for (int y = 0; y < tDatas[currentTile].heightmapResolution; y += density)
-            {
-                for (int x = 0; x < tDatas[currentTile].heightmapResolution; x += density)
-                {
-                    tempBiomeBlend = new int[biomeStorage.biomes.Length];
-                    doBlend = false;
-                    blendAmount = 0;
-                    //Loop through biomes to check which ones exist
-                    for (int i = 0; i < biomeStorage.biomes.Length; i++)
-                    {
-                        //Check if that biome exists on this terrain tile. If it doesn't, continue and skip this tile.
-                        if (biomesPerTerrainTile[currentTile][i] == 0)
-                        {
-                          //Do nothing
-                        }
-                        else
-                        {
-                            //Check biome splat map at this position
-                            if (biomeSplatList[currentTile][y,x, i] != 0)
-                            {
-                                if (biomeSplatList[currentTile][y, x, i] == 1)
-                                {
-                                    //The biome is not blended
-                                    tileObjects = biomeStorage.biomes[i].biomeObjects;
-                                    biomeIndex = i;
-                                }
-                                else
-                                {
-                                    //The biome is blended, add its weight to the blend array and blendAmount, and mark that we must blend
-                                    tempBiomeBlend[i] = 1;
-                                    doBlend = true;
-                                    blendAmount += biomeSplatList[currentTile][y, x, i];
-                                }
-                            }
-                        }
-                    }
-                    //If blending, decide a biome that will take prevelance at this spot (weighted by biome splatmap #)
-                    if (doBlend)
-                    {
-                        float thisBlend = 0;
-                        float blendNumber = Random.Range(0, blendAmount);
-                        for(int i=0; i<biomeStorage.biomes.Length; i++)
-                        {
-                            if (biomeSplatList[currentTile][y, x, i]+thisBlend > blendNumber)
-                            {
-                                tileObjects = biomeStorage.biomes[i].biomeObjects;
-                                biomeIndex = i;
-                            }
-                            else
-                            {
-                                thisBlend += biomeSplatList[currentTile][y, x, i];
-                                break;
-                            }
-                        }
-                    }
-                    //As long as there is actually a biome, generate
-                    if (biomeIndex != -1)
-                    {
-
-                       
-                        //Check that there are objects in this biome
-                        if (biomeStorage.biomes[biomeIndex].biomeObjects.Length == 0)
-                        {
-                            //No objects in this biome
-                            continue;
-                        }
-                        else {
-                        //Define random chance for this object to appear
-                        int randomChance = Random.Range(0, 1000);
-                            /* The odds of this object appearing depend on the chance for its category defined above.
-                             * This number is multiplied by the value of the biome density map + 0.25 (normalized between 0 and 1)
-                               to decide if an object is actually spawned at this spot. The biome density X and Y are divided by 4 as it samples a smaller map. */
-                            if (randomChance < biomeStorage.biomes[biomeIndex].biomeDensity * Mathf.Lerp(0, 1.25f, (biomeDensityMapList[currentTile][x/4, y/4] + 0.25f))) 
-                            {
-                                //Pick a random object from the list depending on weights
-                                int randomWeight = Random.Range(0, maxObjectWeights[biomeIndex]);
-                                //Store the object we want
-                                GenerateableObject selectedOb = null;
-                                //Iterate through list until we find that point. Int is temporary storage of index
-                                int tempIndex = 0;
-                                for (int i = 0; i < tileObjects.Length; i++)
-                                {
-                                    if (tempIndex + tileObjects[i].weight > randomWeight)
-                                    {
-                                        //This object is the index we want
-                                        selectedOb = tileObjects[i];
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        //Not at the index yet, add the failed objects weight to tempIndex
-                                        tempIndex += tileObjects[i].weight;
-
-                                    }
-                                }
-                                //Log error if things got messed up
-                                if (selectedOb == null)
-                                {
-                                    //How the fuck did we get here?
-                                    Debug.LogError("Finished iteration and selected object to spawn is null.");
-                                }
-
-                                //Store a reference to the tiles normals
-                                float newX = x;
-                                float newY = y;
-                                Vector3 spotNormal = tDatas[currentTile].GetInterpolatedNormal(newX/1025,newY/1025);
-                                //Set the position of where the object should spawn
-                                Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[currentTile].GetHeight(x,y)+selectedOb.yOffset, updatedTilePosition.z + (y / 1.025f));
-                                //Change spawn position Y depending on normals so roots and things don't stick out
-                                if (selectedOb.offsetHeightByNormals)
-                                {
-                                    //100 is the multiple so it doesn't stick out of the terrain on large slopes
-                                    spawnedPosition.y -= (1 - Mathf.Abs(spotNormal.y)) * 100;
-                                }
-                                //Rotate objects
-                                Vector3 objectRotation = Vector3.zero;
-                                if (selectedOb.alignNormals)
-                                {
-                                    objectRotation = spotNormal;
-                                   // objectRotation.x *= -1;
-                                    //objectRotation.z *= -1;
-                                }
-                                //Actually spawn the object
-                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
-                                //Scale the objects
-                                float randomAmnt = Random.Range(0f, 1f);
-                                float newObjectScale = selectedOb.scale.Evaluate(randomAmnt);
-                                spawnedObject.transform.localScale = new Vector3(newObjectScale, newObjectScale, newObjectScale);
-                                spawnedObject.name = spotNormal.ToString();
-                                
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("Biome index at -1, no biomes exists at this spot");
-                    }
-                    if (y % 800 == 0)
-                    {
-                        //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
-                        yield return new WaitForEndOfFrame();
-                    }
-                }
-            }
-
-
-
-
-
-
-
-            yield return new WaitForSeconds(0.1f);
-            
-            
-           
-            currentTile += 1;
-            Debug.Log("Finished tile" + currentTile);
-        }
-
-
-
-
-
-        yield break;
-    }
+    
 
     //Voronoi map generation method that uses a coroutine in order to generate over multiple frames.
     private IEnumerator GenerateTileVoronoiMap(int dimensions, int regionAmount, uint seed, int2 offset, int order)
