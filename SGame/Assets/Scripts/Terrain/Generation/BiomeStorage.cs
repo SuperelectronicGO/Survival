@@ -27,49 +27,47 @@ public class TerrainBiome
 
     public string name;
     public BiomeType biomeType;
-    [Header("Biome Texture")]
-    public TerrainLayer biomeLayer;
-    [Header("")]
-    [Header("Biome Settings")]
     public float minTemp;
     public float maxTemp;
     public float minHum;
     public float maxHum;
-    public float[,] splatMap;
-    [Header("Chance from 0-1000")]
-    [Range(0,1000)]
+    [NonReorderable]
+    public SubBiome[] subBiomes;
+}
+[System.Serializable]
+public class SubBiome
+{
+    public enum BiomeType
+    {
+        Spruce_Dead,
+        Spruce_Barren,
+        Spruce_Lush,
+        Oak_Lush,
+        Plains_Lush
+
+
+    }
+
+    public string name;
+    public BiomeType biomeType;
+    [Header("Biome Texture")]
+    public TerrainLayer biomeLayer;
+    [Header("")]
+    [Header("Subbiome Data")]
+    [Range(0, 1000)]
     public int biomeDensity;
+    [Range(0, 1)]
+    public float minCutoff;
+    [Range(0, 1)]
+    public float maxCutoff;
     [Header("")]
     [Header("Biome Objects")]
     [NonReorderable]
-    public GenerateableObject[] biomeObjects;
+    public ObjectScriptable[] biomeObjects;
     [Header("")]
     [Header("Detail Objects")]
     [NonReorderable]
     public DetailObjectScriptable[] details;
 }
 
-[System.Serializable]
-public class GenerateableObject
-{
-    public string name;
-    public enum typeOfObject
-    {
-        Tree,
-        Rock,
-        Foliage,
-        Misc
-    }
-    public typeOfObject objType;
-    public GameObject prefab;
-    public AnimationCurve scale;
-    public float yOffset;
-    public bool alignNormals;
-    public bool offsetHeightByNormals;
-    [Range(0,1000)]
-    public int weight;
 
-    
-    
-    
-}

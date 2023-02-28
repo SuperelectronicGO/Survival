@@ -8,21 +8,22 @@ public class CraftingRecipeIcon : MonoBehaviour
     private CraftingManager cManager;
     public CraftingScriptable recipe;
     public Image displayImage;
+    private Button_UI button_UI;
     // Start is called before the first frame update
     void Start()
     {
-        cManager = FindObjectOfType<CraftingManager>();   
-        
+        cManager = FindObjectOfType<CraftingManager>();
+        button_UI = GetComponent<Button_UI>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        GetComponent<Button_UI>().ClickFunc = () =>
+        button_UI.ClickFunc = () =>
         {
             cManager.currentRecipe = recipe;
-            cManager.updateCurrentRecipe(true,true);
-
+            cManager.returnCraftingItems();
+            cManager.displayCurrentRecipe();
         };
     }
 }

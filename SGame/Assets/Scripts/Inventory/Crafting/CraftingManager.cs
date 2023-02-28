@@ -6,192 +6,71 @@ using TMPro;
 public class CraftingManager : MonoBehaviour
 {
     [Header("Components")]
+    //Reference to canvas
     [SerializeField] private Canvas canvas;
+    //Reference to inventory
     [SerializeField] private Inventory inventory;
-    [SerializeField] private GameObject recipeIconParent;
-    [SerializeField] private GameObject recipeTemplate;
+    //The image used to display the selected recipe's icon
     [SerializeField] private Image displayImage;
+    //The text for the result of the recipe
+    [SerializeField] private TextMeshProUGUI resultDisplayText;
+    //The search bar for the crafting recipe field
     [SerializeField] private InputField searchBar;
-    [SerializeField] private Image[] ingredientDisplayImages;
-    [SerializeField] private Image[] ingredientDisplayImageBackgrounds;
-    [SerializeField] private Button craftButton;
-    public TextMeshProUGUI[] amountTexts;
-    [SerializeField] private Sprite blankImage;
-    [SerializeField] private TextMeshProUGUI resultDescription;
-    public TextMeshProUGUI alternateResultDescription;
-    [SerializeField] private Transform alternateIngredientAnchor;
-    [SerializeField] private GameObject alternateIngredientButton;
+    //The array of slots for crafting
+    [SerializeField] private List<InventorySlot> slots = new List<InventorySlot>();
+    [Header("Anchors")]
+    //Gameobject to use as the start pos for spawning the different recipes
+    [SerializeField] private GameObject recipeIconParent;
+    //Gameobject to use as the start pos for spawning the different recipe ingredients
+    [SerializeField] private Transform ingredientParent;
+    [Header("Templates")]
+    //The blank recipe prefab
+    [SerializeField] private GameObject recipeTemplate;
+    //The blank ingredient prefab
+    [SerializeField] private GameObject ingredientTemplate;
     [Header("Recipe Data")]
+    //List of all recipes
     [SerializeField] private List<CraftingScriptable> recipes = new List<CraftingScriptable>();
+    //List of recipes that are beign displayed
     private List<CraftingScriptable> validRecipes = new List<CraftingScriptable>();
+    //Current selected recipe
     public CraftingScriptable currentRecipe;
+    //Current ingredients needed for the recipe
     public List<Item> currentIngredients = new List<Item>();
+    //Items we are using for the current recipe
+    public List<Item> usingItems = new List<Item>();
+    //Item that is going to be used as output
+    public Item outputItem;
     [Header("Data")]
+    //Current type of the recipe
     public CraftingScriptable.recipeType currentRecipeType = CraftingScriptable.recipeType.All;
+    //List of the current items in the crafting slots
+    private List<Item> craftingSlotItems = new List<Item>();
+    //Bool if the player is able to craft or not
+    private bool ableToCraft = false;
+    public List<CraftingChangeModifier> currentModifiers;
+    //If the player is using the search bar or not
     public bool isTyping;
-    
+
     // Start is called before the first frame update
     void Start()
     {
         validRecipes = recipes;
+        currentModifiers = new List<CraftingChangeModifier>();
     }
 
-    public void showRecipe()
-    {
-        craftButton.gameObject.SetActive(true);
-        displayImage.gameObject.SetActive(true);
-        resultDescription.gameObject.SetActive(true);
-        alternateResultDescription.gameObject.SetActive(true);
-        for (int i = 0; i < ingredientDisplayImages.Length; i++)
-        {
-            ingredientDisplayImages[i].gameObject.SetActive(true);
-            ingredientDisplayImageBackgrounds[i].gameObject.SetActive(true);
-            amountTexts[i].gameObject.SetActive(true);
-            
-        }
 
-
-    }
-
-    public void hideRecipe()
-    {
-        craftButton.gameObject.SetActive(false);
-        resultDescription.text = string.Empty;
-        alternateResultDescription.text = string.Empty;
-        displayImage.gameObject.SetActive(false);
-        resultDescription.gameObject.SetActive(false);
-        alternateResultDescription.gameObject.SetActive(false);
-        for(int i=0; i<ingredientDisplayImages.Length; i++)
-        {
-            ingredientDisplayImages[i].gameObject.SetActive(false);
-            ingredientDisplayImageBackgrounds[i].gameObject.SetActive(false);
-            amountTexts[i].gameObject.SetActive(false);
-            amountTexts[i].text = string.Empty;
-
-        }
-        for (int i = 0; i < alternateIngredientAnchor.childCount; i++)
-        {
-            Destroy(alternateIngredientAnchor.GetChild(i).gameObject);
-        }
-    }
     // Update is called once per frame
     void Update()
     {
         isTyping = searchBar.isFocused;
     }
-  
-    public void updateCurrentRecipe(bool updateAll, bool ShowRecipe)
-    {
-        
-        if (currentRecipe == null)
-        {
-            return;
-        }
-        if (updateAll)
-        {
-            displayImage.sprite = currentRecipe.result.GetSprite();
-            resultDescription.text = currentRecipe.itemDescription;
-            currentIngredients.Clear();
-            int x = 0;
-            int y = 0;
-            int j = 0;
-            for(int i=0; i<alternateIngredientAnchor.childCount; i++)
-            {
-                Destroy(alternateIngredientAnchor.GetChild(i).gameObject);
-            }
-            foreach (RecipeComponent r in currentRecipe.ingredients)
-            {
-                currentIngredients.Add(r.Ingredients[0].item);
-                if (r.Ingredients.Count > 1)
-                {
-                 
-                      
-                    for (int i = 0; i < r.Ingredients.Count; i++) {
-                        Vector3 spawnpos = alternateIngredientAnchor.position;
-                        spawnpos.x += (22.5f * x * canvas.scaleFactor);
-                        spawnpos.y += (22.5f * y * canvas.scaleFactor);
-                        y += 1;
-                        if (y >= 2)
-                        {
-                            y = 0;
-                            x += 1;
-                        }
-
-                        GameObject g = Instantiate(alternateIngredientButton, spawnpos, Quaternion.identity, alternateIngredientAnchor);
-
-                        DifferentRecipeButton d = g.GetComponent<DifferentRecipeButton>();
-                        d.description = r.Ingredients[i].changeDescription;
-                        d.manager = this;
-                        d.heldItem = r.Ingredients[i].item;
-                        d.orderInIngredientList = j;
-                        d.icon.sprite = r.Ingredients[i].item.GetSprite();
-                            }
-                            
-                }
-                j += 1;
-            }
-            if(ShowRecipe)
-            showRecipe();
-        }
 
 
-
-        for(int i= 0; i< ingredientDisplayImages.Length; i++)
-        {
-            if (i<currentIngredients.Count)
-            {
-              
-                ingredientDisplayImages[i].sprite = currentIngredients[i].GetSprite();
-                Color displayColor = Color.white;
-                amountTexts[i].text = currentIngredients[i].amount.ToString();
-                if (inventory.HasItem(currentIngredients[i]))
-                {
-                    displayColor.a = 1;
-
-
-                }
-                else
-                {
-                    displayColor.a = 0.35f;
-                }
-                ingredientDisplayImages[i].color = displayColor;
-
-
-            }
-            else
-            {
-                ingredientDisplayImages[i].sprite = blankImage;
-                amountTexts[i].text = string.Empty;
-            }
-        }
-        bool displayCraft = true;
-        foreach(Item i in currentIngredients)
-        {
-            if (inventory.HasItem(i))
-            {
-                continue;
-            }
-            else
-            {
-                displayCraft = false;
-            }
-        }
-        if (displayCraft)
-        {
-            craftButton.interactable = true;
-        }
-        else
-        {
-            craftButton.interactable = false;
-        }
-
-
-
-    }
-    
+    //Method to display recipes on a side pannel
     public void displayValidRecipes(bool isButton)
     {
-        for(int i =0; i<recipeIconParent.transform.childCount; i++)
+        for (int i = 0; i < recipeIconParent.transform.childCount; i++)
         {
             Destroy(recipeIconParent.transform.GetChild(i).gameObject);
         }
@@ -201,7 +80,7 @@ public class CraftingManager : MonoBehaviour
         {
             if (isButton)
             {
-                if(s.recipetype == currentRecipeType||currentRecipeType==CraftingScriptable.recipeType.All)
+                if (s.recipetype == currentRecipeType || currentRecipeType == CraftingScriptable.recipeType.All)
                 {
                     //Do nothing and continue
                 }
@@ -241,41 +120,350 @@ public class CraftingManager : MonoBehaviour
             }
 
         }
-        
+
     }
 
-    public void craftRecipe()
+    //Method that displays the current recipe
+    public void displayCurrentRecipe()
     {
-        int i = 0;
-        bool hasItems = true;
-        foreach(Item item in currentIngredients)
+        //Set the display image
+        displayImage.sprite = currentRecipe.result.GetSprite();
+        //Set the result text
+        setResultDescription(false);
+        displayRecipeIngredients();
+
+    }
+
+    //Method that calculates the string for the result description - existing is false if a new recipe is selected, or true if modifying current recipe
+    private void setResultDescription(bool existing)
+    {
+        //Create string to hold data
+        string resultString = "";
+        //Set initial to name and description
+        resultString += "<size=20>" + currentRecipe.result.itemName() + "</size>\n<size=10>" + currentRecipe.itemDescription + "</size>";
+        //Add each attribute the item has to the description
+        foreach (ItemAttribute Attribute in currentRecipe.result.attributes)
         {
-            if (inventory.HasItem(currentIngredients[i]))
+            switch (Attribute.attribute)
             {
-                i += 1;
-               
+                case ItemAttribute.AttributeName.Durability:
+                    float maxDurValue = currentRecipe.result.getAttributeValue(ItemAttribute.AttributeName.MaxDurability);
+                    float durValue = Attribute.value;
+                    //Have to create values to store durability values so we can apply in the correct order - both are already int values
+                    float linearDurValue = 0;
+                    float percentDurValue = 1;
+                    for(int i=0; i<currentModifiers.Count; i++)
+                    {
+                        if (currentModifiers[i].type == CraftingChangeModifier.changeType.durabilityLinear)
+                        {
+                            linearDurValue += currentModifiers[i].value;
+                        }else if(currentModifiers[i].type == CraftingChangeModifier.changeType.durabilityPercent)
+                        {
+                            //Make a value like 1.08 for when we multiply
+                            percentDurValue += (currentModifiers[i].value / 100);
+                        }
+                    }
+                    
+                    //Apply
+                    maxDurValue *= percentDurValue;
+                    durValue *= percentDurValue;
+                    maxDurValue += linearDurValue;
+                    durValue += linearDurValue;
+                    //Round
+                    maxDurValue = Mathf.RoundToInt(maxDurValue);
+                    durValue = Mathf.RoundToInt(durValue);
+                    
+                    resultString += "\n<size=8>Durability: " + durValue + "/" + maxDurValue + "</size>";
+                    break;
+                case ItemAttribute.AttributeName.Damage:
+                    resultString += "\n<size=8>Damage: " + Attribute.value + "</size>";
+                    break;
+            }
+
+        }
+        //Add each modifier the ingredients will contribute
+        if(currentModifiers.Count != 0){
+            for(int i=0; i<currentModifiers.Count; i++)
+            {
+                if (currentModifiers[i].value != 0)
+                {
+                    switch (currentModifiers[i].type)
+                    {
+                        case CraftingChangeModifier.changeType.durabilityLinear:
+                            if (currentModifiers[i].value > 0)
+                            {
+                                resultString += "\n<color=#1aeb13ff>+ " + currentModifiers[i].value + " Durability</color>";
+
+                            }
+                            else
+                            {
+                                resultString += "\n<color=#ff0000ff>- " + currentModifiers[i].value + " Durability</color>";
+                            }
+                            break;
+                        case CraftingChangeModifier.changeType.durabilityPercent:
+                            if (currentModifiers[i].value > 0)
+                            {
+                                resultString += "\n<color=#1aeb13ff>+ " + currentModifiers[i].value + "% Durability</color>";
+                            }
+                            else
+                            {
+                                resultString += "\n<color=#ff0000ff>- " + currentModifiers[i].value + "% Durability</color>";
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+        if (existing)
+        {
+           
+            
+           
+
+        }
+        resultDisplayText.text = resultString;
+    }
+
+    //Method that displays the ingredients needed for a recipe
+    private void displayRecipeIngredients()
+    {
+        for (int i = 0; i < ingredientParent.childCount; i++)
+        {
+            Destroy(ingredientParent.GetChild(i).gameObject);
+        }
+        for (int x = 0; x < currentRecipe.ingredients.Count; x++)
+        {
+            Vector3 spawnPos = ingredientParent.position;
+            spawnPos.x += (x * 27) * canvas.scaleFactor;
+            GameObject ingredient = Instantiate(ingredientTemplate, spawnPos, Quaternion.identity, ingredientParent);
+            //Store first child because we have more than one reference
+            Transform childImage = ingredient.transform.GetChild(0);
+            //Get the text component and set it
+            ingredient.transform.GetChild(1).gameObject.GetComponent<TextMeshProUGUI>().text = "x" + currentRecipe.ingredients[x].amount.ToString();
+            //Set the sprite for the first Icon
+            Item blankItem = new Item();
+            blankItem.itemType = currentRecipe.ingredients[x].Elements[0].Item;
+            childImage.gameObject.GetComponent<Image>().sprite = blankItem.GetSprite();
+            childImage.gameObject.name = currentRecipe.ingredients[x].Elements[0].name + " Sprite";
+            //Create duplicates of the icon if more than one option
+            if (currentRecipe.ingredients[x].Elements.Count > 1)
+            {
+                for (int i = 1; i < currentRecipe.ingredients[x].Elements.Count; i++)
+                {
+                    //Create a new image to hold the sprite 
+                    Image iconImage = Instantiate(childImage, ingredient.transform.position + new Vector3(Random.Range(-2, 2) * canvas.scaleFactor, (9 * i) * canvas.scaleFactor, 0), Quaternion.identity, ingredient.transform).GetComponent<Image>();
+                    //Create a blank item, and pass it the itemType we have so we can get the sprite of the item
+                    blankItem = new Item();
+                    blankItem.itemType = currentRecipe.ingredients[x].Elements[i].Item;
+                    iconImage.sprite = blankItem.GetSprite();
+                    iconImage.gameObject.name = currentRecipe.ingredients[x].Elements[i].name + " Sprite";
+                }
+            }
+        }
+    }
+
+    //Method that returns all the items in the crafting slots when the inventory is closed or a new recipe is selected
+    public void returnCraftingItems()
+    {
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i].heldItem.itemType != Item.ItemType.Blank)
+            {
+                inventory.AddItem(slots[i].heldItem);
+                slots[i].heldItem = inventory.blankItem;
+                slots[i].updateSlotValues();
+            }
+        }
+        analyzeItemList();
+    }
+
+    //Method to refresh the UI's of the crafting slots
+    public void refreshCraftingSlotValues()
+    {
+        for (int i = 0; i < slots.Count; i++)
+        {
+            slots[i].updateSlotValues();
+        }
+    }
+
+    //Method that calculates if crafting is possible as well as what modifiers to use based on the list
+    public void analyzeItemList()
+    {
+        if (currentRecipe == null)
+        {
+            return;
+        }
+        //Define an array of each modifier
+        currentModifiers.Clear();
+        //Define a new array of the needed items that we can modify
+        float[] neededItems = new float[currentRecipe.ingredients.Count];
+        //Clear the list of the items we are to be using
+        usingItems.Clear();
+        //Set the values needed
+        for (int i = 0; i < currentRecipe.ingredients.Count; i++)
+        {
+            neededItems[i] = currentRecipe.ingredients[i].amount;
+            
+        }
+        //Check the item in each slot against that element
+        for (int slotIndex = 0; slotIndex < slots.Count; slotIndex++)
+        {
+            for (int i = 0; i < currentRecipe.ingredients.Count; i++)
+            {
+                //Nested loop through each element that can be used for that ingredient
+                for (int j = 0; j < currentRecipe.ingredients[i].Elements.Count; j++)
+                {
+                    if (slots[slotIndex].heldItem.itemType == currentRecipe.ingredients[i].Elements[j].Item)
+                    {
+                        //An item in this slot matches what we need
+                        if (neededItems[i] > 0)
+                        {
+                            Item contributedItem = new Item();
+                            contributedItem.itemType = slots[slotIndex].heldItem.itemType;
+                            contributedItem.amount = slots[slotIndex].heldItem.amount;
+                            //Don't subtract more than we need
+                            if (contributedItem.amount > neededItems[i])
+                            {
+                                contributedItem.amount = Mathf.RoundToInt(neededItems[i]);
+                            }
+                            usingItems.Add(contributedItem);
+                            //If it matches, add it to the modifier array
+                            for (int elementModifierIndex = 0; elementModifierIndex < currentRecipe.ingredients[i].Elements[j].modifiers.Length; elementModifierIndex++)
+                            {
+
+                                bool modifierExists = false;
+                                float modifierChangeAmount = 0;
+                                for (int modifierIndex = 0; modifierIndex < currentModifiers.Count; modifierIndex++)
+                                {
+                                    if (currentModifiers[modifierIndex].type == currentRecipe.ingredients[i].Elements[j].modifiers[elementModifierIndex].type)
+                                    {
+                                        CraftingChangeModifier modifierToAdd = new CraftingChangeModifier();
+                                        modifierToAdd.value = currentRecipe.ingredients[i].Elements[j].modifiers[elementModifierIndex].value;
+                                        modifierToAdd.type = currentRecipe.ingredients[i].Elements[j].modifiers[elementModifierIndex].type;
+                                        modifierChangeAmount = modifierToAdd.value;
+                                        if (slots[slotIndex].heldItem.amount >= neededItems[i])
+                                        {
+                                            modifierChangeAmount *= (neededItems[i] / currentRecipe.ingredients[i].amount);
+                                        }
+                                        else
+                                        {
+                                            modifierChangeAmount *= (neededItems[i] / currentRecipe.ingredients[i].amount) * (slots[slotIndex].heldItem.amount / neededItems[i]);
+                                        }
+                                        currentModifiers[modifierIndex].value += modifierChangeAmount;
+                                        modifierExists = true;
+                                    }
+
+                                }
+                                if (!modifierExists)
+                                {
+                                    CraftingChangeModifier modifierToAdd = new CraftingChangeModifier();
+                                    modifierToAdd.value = currentRecipe.ingredients[i].Elements[j].modifiers[elementModifierIndex].value;
+                                    modifierToAdd.type = currentRecipe.ingredients[i].Elements[j].modifiers[elementModifierIndex].type;
+
+                                    if (slots[slotIndex].heldItem.amount >= neededItems[i])
+                                    {
+                                        modifierToAdd.value *= (neededItems[i] / currentRecipe.ingredients[i].amount);
+                                    }
+                                    else
+                                    {
+                                        modifierToAdd.value *= (neededItems[i] / currentRecipe.ingredients[i].amount) * (slots[slotIndex].heldItem.amount / neededItems[i]);
+                                    }
+
+                                    currentModifiers.Add(modifierToAdd);
+                                }
+                            }
+                        }
+                        neededItems[i] -= slots[slotIndex].heldItem.amount;
+
+
+                    }
+                }
+            }
+        }
+        //Round modifier values
+        for (int i=0; i<currentModifiers.Count; i++)
+        {
+           currentModifiers[i].value = Mathf.RoundToInt(currentModifiers[i].value);
+        }
+        //Reset result description
+        setResultDescription(true);
+        //Check if able to craft
+        ableToCraft = true;
+        for(int i=0; i<neededItems.Length; i++)
+        {
+            if (neededItems[i] <= 0)
+            {
+                //Still fine 
             }
             else
             {
-                i += 1;
-                hasItems = false;
-              
+                ableToCraft = false;
             }
-            
         }
-        if (hasItems)
+        //Set output item with modifiers
+        if (ableToCraft)
         {
-           
-            for(int j=0; j<currentIngredients.Count; j++) 
-            {
-                inventory.RemoveItem(currentIngredients[j]);
-            }
-                inventory.AddItem(currentRecipe.result);
-            updateCurrentRecipe(false, true);
-        }
+            outputItem = currentRecipe.result.Clone();
 
-       
+            // outputItem.itemType = currentRecipe.result.itemType;
+            //outputItem.amount = currentRecipe.result.amount;
+            //outputItem.attributes = currentRecipe.result.attributes;
+            float totalDurabilityPercentModifier = 1;
+            float totalDurabilityLinearModifier = 0;
+
+            for(int i=0; i<currentModifiers.Count; i++)
+            {
+                switch (currentModifiers[i].type)
+                {
+                    case CraftingChangeModifier.changeType.durabilityPercent:
+                        totalDurabilityPercentModifier += (currentModifiers[i].value/100);
+                        break;
+                    case CraftingChangeModifier.changeType.durabilityLinear:
+                        totalDurabilityLinearModifier += currentModifiers[i].value;
+                        break;
+                }
+            }
+            //Set attributes
+            if (outputItem.hasAttribute(ItemAttribute.AttributeName.Durability))
+            {
+                //Set multiplication first, then add
+                outputItem.setAttributeValue(ItemAttribute.AttributeName.Durability, Mathf.RoundToInt(totalDurabilityPercentModifier*outputItem.getAttributeValue(ItemAttribute.AttributeName.Durability)), "=");
+                outputItem.setAttributeValue(ItemAttribute.AttributeName.MaxDurability, Mathf.RoundToInt(totalDurabilityPercentModifier * outputItem.getAttributeValue(ItemAttribute.AttributeName.MaxDurability)), "=");
+                outputItem.setAttributeValue(ItemAttribute.AttributeName.Durability, Mathf.RoundToInt(totalDurabilityLinearModifier+ outputItem.getAttributeValue(ItemAttribute.AttributeName.Durability)), "=");
+                outputItem.setAttributeValue(ItemAttribute.AttributeName.MaxDurability, Mathf.RoundToInt(totalDurabilityLinearModifier+ outputItem.getAttributeValue(ItemAttribute.AttributeName.MaxDurability)), "=");
+                //Round to be normal
+                
+            }
+        }
     }
 
+    //Method that crafts the item
+    public void craftItem()
+    {
+        if (ableToCraft)
+        {
+            for(int i=0; i<usingItems.Count; i++)
+            {
+                inventory.RemoveItem(usingItems[i], slots);
+            }
+            inventory.AddItem(outputItem);
+            analyzeItemList();
+            inventory.refreshSlotValues(slots);
+        }
+        
+    }
    
+}
+[System.Serializable] 
+public class CraftingChangeModifier
+{
+    public enum changeType
+    {
+        durabilityLinear,
+        durabilityPercent
+
+    }
+    public changeType type;
+    public float value;
+    
 }

@@ -18,12 +18,8 @@ public class Inventory : MonoBehaviour
     [Header("Other Components")]
     public GameObject player;
     public CraftingManager cManager;
-    //Used to set the multiplicitave alpha value to fade in and fade out the inventory during animations
-    public float inventoryAlphaValue = -0.1f;
-    //Bool to control if alpha being set
-    public bool setAlpha;
     //List of all slots
-    private List<InventorySlot> slots = new List<InventorySlot>();
+    public List<InventorySlot> slots = new List<InventorySlot>();
     void Start()
     {
         slots.Clear();
@@ -32,7 +28,6 @@ public class Inventory : MonoBehaviour
             if (hotbarParent.transform.GetChild(i).transform.name.Contains("HotbarSlot"))
             {
                 slots.Add(hotbarParent.transform.GetChild(i).GetComponent<InventorySlot>());
-                hotbarParent.transform.GetChild(i).GetComponent<InventorySlot>().canvas = canvas;
             }
         }
         for (int i=0; i<slotParent.transform.childCount; i++)
@@ -40,7 +35,6 @@ public class Inventory : MonoBehaviour
          if(slotParent.transform.GetChild(i).transform.name.Contains("InventorySlot"))
             {
                 slots.Add(slotParent.transform.GetChild(i).GetComponent<InventorySlot>());
-                slotParent.transform.GetChild(i).GetComponent<InventorySlot>().canvas = canvas;
             }
         }
         mouseImage.gameObject.SetActive(false);
@@ -51,15 +45,6 @@ public class Inventory : MonoBehaviour
     void Update()
     {
         mouseImage.transform.position = Input.mousePosition;
-
-        if(inventoryAlphaValue!=-0.1f|| inventoryAlphaValue != 1.1f)
-        {
-            setAlpha = true;
-        }
-        else
-        {
-            setAlpha = false;
-        }
     }
 
     public void setMouseImage(bool active)
@@ -91,6 +76,13 @@ public class Inventory : MonoBehaviour
             mouseText.text = string.Empty;
         }
     }
+    public void refreshSlotValues(List<InventorySlot> slots)
+    {
+        for(int i=0; i<slots.Count; i++)
+        {
+            slots[i].updateSlotValues();
+        }
+    }
     public void AddItem(Item item)
     {
         int amount = item.amount;
@@ -106,6 +98,7 @@ public class Inventory : MonoBehaviour
                 if (slotItem.amount + amount <= slotItem.MaxStack())
                 {
                     slotItem.amount += amount;
+                    refreshSlotValues(slots);
                     return;
                 }
                 //Otherwise the slot can fit some, but not all
@@ -132,7 +125,7 @@ public class Inventory : MonoBehaviour
                     newItem.attributes = item.attributes;
 
                     slot.heldItem = newItem;
-                  
+                    refreshSlotValues(slots);
                     return;
                 }
                 else
@@ -152,18 +145,17 @@ public class Inventory : MonoBehaviour
         droppedItem.amount = amount;
         droppedItem.attributes = item.attributes;
         DropItem(droppedItem);
+        refreshSlotValues(slots);
     }
-
     public void DropItem(Item item)
     {
         Vector3 spawnPos = player.transform.position + (player.transform.forward*2);
         spawnPos.y += .5f;
         GameObject droppedItem = Instantiate(item.getModel(), spawnPos, Quaternion.identity);
         droppedItem.GetComponent<DroppedItem>().item = item;
-
+        refreshSlotValues(slots);
     }
-
-    public void RemoveItem(Item item)
+    public void RemoveItem(Item item, List<InventorySlot> slots)
     {
         int amount = item.amount;
         foreach(InventorySlot slot in slots)
@@ -189,8 +181,8 @@ public class Inventory : MonoBehaviour
                 continue;
             }
         }
+        refreshSlotValues(slots);
     }
-
     public bool HasItem(Item item) {
         int amount = 0;
         foreach (InventorySlot slot in slots)
@@ -214,6 +206,35 @@ public class Inventory : MonoBehaviour
 
         }
 
+    public string generateTooltipForItem(Item item)
+    {
+        //Create base, item name + description
+        string tooltipString = item.itemName() + "\n<i>" + item.itemTooltip() + "</i>\n";
+        //Add the attributes for the item
+        for(int i=0; i<item.attributes.Count; i++)
+        {
+            switch (item.attributes[i].attribute)
+            {
+                case ItemAttribute.AttributeName.Damage:
+                    tooltipString += "Damage: " + item.attributes[i].value+" \n";
+                    break;
+                case ItemAttribute.AttributeName.Durability:
+                    tooltipString += "Durability: " + item.attributes[i].value;
+                    if (item.hasAttribute(ItemAttribute.AttributeName.MaxDurability))
+                    {
+                        tooltipString += "/" + item.getAttributeValue(ItemAttribute.AttributeName.MaxDurability) + "\n";
+                    }
+                    else
+                    {
+                        tooltipString += "\n";
+                    }
+                    break;
+            }
+        }
+            
+
+        return tooltipString;
+    }
     
 
 

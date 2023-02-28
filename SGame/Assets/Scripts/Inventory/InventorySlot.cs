@@ -7,7 +7,8 @@ using CodeMonkey.Utils;
 public class InventorySlot : MonoBehaviour
 {
     public Item heldItem;
-
+    [SerializeField] private bool isCraftingSlot;
+    [SerializeField] private bool isHotbarSlot;
     [SerializeField] private Inventory inventory;
     [SerializeField] private Image itemImage;
     [SerializeField] private Image durabilityImage;
@@ -27,85 +28,52 @@ public class InventorySlot : MonoBehaviour
 
     private HotbarManager hotbarManager;
     private Color defaultColor;
+
+    private Button_UI button_UI;
     // Start is called before the first frame update
-    void Start()
+    void Awake()
     {
         tooltip = inventory.tooltipObject.GetComponent<Tooltip>();
         rectTransform = GetComponent<RectTransform>();
         backgroundImage = transform.GetChild(0).GetComponent<Image>();
         hotbarManager = FindObjectOfType<HotbarManager>();
         defaultColor = backgroundImage.color;
+        button_UI = GetComponent<Button_UI>();
+        canvas = inventory.canvas;
     }
 
+    
+  
     // Update is called once per frame
     void Update()
     {
         //Manage UI elements
-        if (selected)
-        {
-            backgroundImage.color = hotbarManager.selectedColor;
-        }
-        else
-        {
-            backgroundImage.color = defaultColor;
-        }
-        itemImage.sprite = heldItem.GetSprite();
-        if (heldItem.Stackable()&&heldItem.amount>=1)
-        {
-            amountText.text = heldItem.amount.ToString();
-        }
-        else
-        {
-            amountText.text = string.Empty;
-        }
-        if (heldItem.hasAttribute(ItemAttribute.AttributeName.Durability))
-        {
-            durabilityBar.gameObject.SetActive(true);
-            durabilityImage.fillAmount = heldItem.getAttributeValue(ItemAttribute.AttributeName.Durability) / heldItem.getAttributeValue(ItemAttribute.AttributeName.MaxDurability);
-        }
-        else
-        {
-            durabilityBar.gameObject.SetActive(false);
-        }
 
 
 
-        GetComponent<Button_UI>().MouseOverFunc = () =>
+
+        button_UI.MouseOverOnceFunc = () =>
         {
             if (heldItem.itemType != Item.ItemType.Blank)
             {
-                //  inventory.tooltipObject.SetActive(true);
-                tooltip.tooltipText.text = heldItem.itemName() + "\n<i>" + heldItem.itemTooltip() + "</i>\n";
-
-
-                //(rectTransform.rect.height * rectTransform.localScale.y / 2) -
-                tooltip.transform.position = new Vector3(rectTransform.position.x + (rectTransform.rect.width * rectTransform.localScale.x / 2) + 2, rectTransform.position.y - ((tooltip.tooltipText.GetComponent<RectTransform>().rect.height / 2) * canvas.scaleFactor), 0);
-                Vector2 tooltipSizeModiified = new Vector2(tooltip.tooltipRect.rect.width + 2, tooltip.tooltipRect.rect.height + 2);
-                tooltip.background.sizeDelta = tooltipSizeModiified;
-                tooltip.background.transform.position = new Vector3(tooltip.tooltipText.transform.position.x - 1, tooltip.tooltipText.transform.position.y - 1, 0);
-                tooltip.tooltipText.gameObject.SetActive(true);
-                tooltip.background.gameObject.SetActive(true);
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
             }
             
         };
 
-        GetComponent<Button_UI>().MouseOutOnceFunc = () =>
+        button_UI.MouseOutOnceFunc = () =>
         {
-           
-            // inventory.tooltipObject.SetActive(false);
-            tooltip.background.gameObject.SetActive(false);
-            tooltip.tooltipText.gameObject.SetActive(false);
-            tooltip.tooltipText.text = string.Empty;
+            Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
         };
 
-        GetComponent<Button_UI>().ClickFunc = () =>
+        button_UI.ClickFunc = () =>
         {
             if (inventory.mouseItem.itemType == Item.ItemType.Blank)
             {
                 //Inventory mouse empty :(
                 if (heldItem.itemType == Item.ItemType.Blank)
                 {
-                    //empty slot, return
+                    //empty slot,
                     inventory.setMouseImage(false);
                   
                 }
@@ -180,11 +148,22 @@ public class InventorySlot : MonoBehaviour
                 }
 
             }
-
-            inventory.cManager.updateCurrentRecipe(true,false);
+            updateSlotValues();
+            if (heldItem.itemType != Item.ItemType.Blank)
+            {
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
+            }
+            else
+            {
+                Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
+            }
+            if (isCraftingSlot)
+            {
+                inventory.cManager.analyzeItemList();
+            }
         };
 
-        GetComponent<Button_UI>().MouseRightClickFunc = () =>
+        button_UI.MouseRightClickFunc = () =>
         {
             if (Input.GetKey(KeyCode.LeftShift))
             {
@@ -223,21 +202,65 @@ public class InventorySlot : MonoBehaviour
                 }
              
             }
-
-
-
-
-
-            inventory.cManager.updateCurrentRecipe(true,false);
+            updateSlotValues();
+            if (heldItem.itemType != Item.ItemType.Blank)
+            {
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
+            }
+            else
+            {
+                Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
+            }
+            if (isCraftingSlot)
+            {
+                inventory.cManager.analyzeItemList();
+            }
         };
 
+        
+
+    }
+
+    public void updateSlotValues()
+    {
         if (heldItem.amount <= 0)
         {
             heldItem = inventory.blankItem;
         }
 
+        if (heldItem.Stackable() && heldItem.amount >= 1)
+        {
+            amountText.text = heldItem.amount.ToString();
+        }
+        else
+        {
+            amountText.text = string.Empty;
+        }
+
+        if (selected)
+        {
+            backgroundImage.color = hotbarManager.selectedColor;
+        }
+        else
+        {
+            backgroundImage.color = defaultColor;
+        }
+
+        itemImage.sprite = heldItem.GetSprite();
+
+        if (heldItem.hasAttribute(ItemAttribute.AttributeName.Durability))
+        {
+            durabilityBar.gameObject.SetActive(true);
+            durabilityImage.fillAmount = heldItem.getAttributeValue(ItemAttribute.AttributeName.Durability) / heldItem.getAttributeValue(ItemAttribute.AttributeName.MaxDurability);
+        }
+        else
+        {
+            durabilityBar.gameObject.SetActive(false);
+        }
+        
     }
 
+    
 
    
 }

@@ -6,6 +6,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName ="Crafting Recipe",menuName ="Scriptables/Crafting Recipe",order =2)]
 public class CraftingScriptable : ScriptableObject
 {
+    
     public enum recipeType
     {
         All,
@@ -27,12 +28,16 @@ public class CraftingScriptable : ScriptableObject
 [System.Serializable]
 public class RecipeComponent
 {
+    public string name;
     [NonReorderable]
-    public List<ingredient> Ingredients = new List<ingredient>();
+    public List<ingredient> Elements = new List<ingredient>();
+    public int amount;
 
 }
 [System.Serializable]
 public class ingredient{
-    public Item item;
-    public string changeDescription;
+    public string name;
+    public Item.ItemType Item;
+    [NonReorderable]
+    public CraftingChangeModifier[] modifiers;
 }

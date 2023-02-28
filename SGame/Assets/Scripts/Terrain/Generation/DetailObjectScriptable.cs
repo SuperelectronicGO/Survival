@@ -34,6 +34,8 @@ public class DetailObjectScriptable : ScriptableObject
     [Header("Patch Settings")]
     [Range(0,1)]
     public float patchCutoff = 1;
+    [Range(0, 1)]
+    public float patchFadeMargin = 0.1f;
     public NoisemapSettingsScriptable noisemapSettings;
 
 

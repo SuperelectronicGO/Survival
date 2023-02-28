@@ -38,6 +38,7 @@ public class PlayerHandler : MonoBehaviour
     {
         anim = toolAnchor.GetComponent<Animator>();
         instance = this;
+        
     }
 
     // Update is called once per frame

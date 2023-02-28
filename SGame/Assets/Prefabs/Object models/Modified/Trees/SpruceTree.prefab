@@ -63,8 +63,8 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 4fa3725e73e1edf40bf35f0b46c1f802, type: 2}
-  - {fileID: 2100000, guid: de3450e4ff2bd014ca287b3c447a7c6d, type: 2}
+  - {fileID: 2100000, guid: 16e46c4513582f24bb0f2f09a9389b41, type: 2}
+  - {fileID: 2100000, guid: cea064bbfa26131418424c0e3f7c7b10, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -133,6 +133,5 @@ MonoBehaviour:
   breakableBy: Axe
   hitParticle: {fileID: 1559013996545472434, guid: 9191e1ad5b5da264d92cc8b94defde81,
     type: 3}
-  deathParticle: {fileID: 3207473227392129351, guid: 818fd47d18e5dbf4dbca9dbd71118032,
-    type: 3}
+  deathParticle: {fileID: 0}
   effectOffset: {x: 0, y: 6, z: 0}
