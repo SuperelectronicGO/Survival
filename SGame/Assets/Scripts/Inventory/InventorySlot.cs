@@ -7,8 +7,14 @@ using CodeMonkey.Utils;
 public class InventorySlot : MonoBehaviour
 {
     public Item heldItem;
-    [SerializeField] private bool isCraftingSlot;
-    [SerializeField] private bool isHotbarSlot;
+    public enum SlotType
+    {
+        Standard,
+        Crafting, 
+        Hotbar,
+        Rune
+    }
+    public SlotType slotType;
     [SerializeField] private Inventory inventory;
     [SerializeField] private Image itemImage;
     [SerializeField] private Image durabilityImage;
@@ -30,6 +36,7 @@ public class InventorySlot : MonoBehaviour
     private Color defaultColor;
 
     private Button_UI button_UI;
+    public bool dirtied = false;
     // Start is called before the first frame update
     void Awake()
     {
@@ -56,18 +63,21 @@ public class InventorySlot : MonoBehaviour
         {
             if (heldItem.itemType != Item.ItemType.Blank)
             {
-                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, slotType==SlotType.Hotbar);
             }
             
         };
 
         button_UI.MouseOutOnceFunc = () =>
         {
-            Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
+            
+            Tooltip.instance.updateTooltip(false, "", rectTransform, slotType == SlotType.Hotbar);
         };
 
         button_UI.ClickFunc = () =>
         {
+            
+            dirtied = true;
             if (inventory.mouseItem.itemType == Item.ItemType.Blank)
             {
                 //Inventory mouse empty :(
@@ -89,6 +99,13 @@ public class InventorySlot : MonoBehaviour
             }
             else
             {
+                if (slotType == SlotType.Rune)
+                {
+                    if (!inventory.mouseItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+                    {
+                        return;
+                    }
+                }
                 //Inventory mouse not empty :)
                 if (heldItem.itemType == Item.ItemType.Blank)
                 {
@@ -97,43 +114,57 @@ public class InventorySlot : MonoBehaviour
                     inventory.mouseItem = inventory.blankItem;
                     inventory.updateMouseItem();
                     inventory.setMouseImage(false);
-                   
                 }
                 else
                 {
+                    //Check if the mouse item and the item in the inventory share the same item
                     if (inventory.mouseItem.itemType == heldItem.itemType)
                     {
-                        //Slots same item
-                        if (inventory.mouseItem.amount + heldItem.amount <= heldItem.MaxStack())
+                        //If they do, check if we are dealing with stackable items
+                        if (heldItem.Stackable())
                         {
-                            heldItem.amount += inventory.mouseItem.amount;
-                            inventory.mouseItem = inventory.blankItem;
-                            inventory.updateMouseItem();
-                            inventory.setMouseImage(false);
-                            
-                        }
-                        else
-                        {
-                            if (heldItem.amount != heldItem.MaxStack())
+                            //Check if we can combine the mouse item with the inventory without any left
+                            if (inventory.mouseItem.amount + heldItem.amount <= heldItem.MaxStack())
                             {
-                                int amountToAdd = heldItem.MaxStack() - heldItem.amount;
-                                heldItem.amount += amountToAdd;
-                                inventory.mouseItem.amount -= amountToAdd;
+                                heldItem.amount += inventory.mouseItem.amount;
+                                inventory.mouseItem = inventory.blankItem;
                                 inventory.updateMouseItem();
-                                inventory.setMouseImage(true);
-                                
+                                inventory.setMouseImage(false);
+
                             }
                             else
                             {
-                                int amountToAdd = inventory.mouseItem.MaxStack() - inventory.mouseItem.amount;
-                                inventory.mouseItem.amount += amountToAdd;
-                               heldItem.amount -= amountToAdd;
-                                inventory.updateMouseItem();
-                                inventory.setMouseImage(true);
-                               
+                                //If not, check if we can top of the stack
+                                if (heldItem.amount != heldItem.MaxStack())
+                                {
+                                    int amountToAdd = heldItem.MaxStack() - heldItem.amount;
+                                    heldItem.amount += amountToAdd;
+                                    inventory.mouseItem.amount -= amountToAdd;
+                                    inventory.updateMouseItem();
+                                    inventory.setMouseImage(true);
+
+                                }
+                                //If not, the slot is full, and pick up what we can
+                                else
+                                {
+                                    int amountToAdd = inventory.mouseItem.MaxStack() - inventory.mouseItem.amount;
+                                    inventory.mouseItem.amount += amountToAdd;
+                                    heldItem.amount -= amountToAdd;
+                                    inventory.updateMouseItem();
+                                    inventory.setMouseImage(true);
+
+                                }
                             }
                         }
-
+                        //If we are not dealing with stackable items, swap the items anyways. This won't matter in most cases, but will when dealing with itemAttributes
+                        else
+                        {
+                            Item inventoryItem = inventory.mouseItem;
+                            inventory.mouseItem = heldItem;
+                            heldItem = inventoryItem;
+                            inventory.updateMouseItem();
+                            inventory.setMouseImage(true);
+                        }
                     }
                     else
                     {
@@ -143,7 +174,7 @@ public class InventorySlot : MonoBehaviour
                         heldItem = inventoryItem;
                         inventory.updateMouseItem();
                         inventory.setMouseImage(true);
-                       
+
                     }
                 }
 
@@ -151,20 +182,22 @@ public class InventorySlot : MonoBehaviour
             updateSlotValues();
             if (heldItem.itemType != Item.ItemType.Blank)
             {
-                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, slotType == SlotType.Hotbar);
             }
             else
             {
-                Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
+                Tooltip.instance.updateTooltip(false, "", rectTransform, slotType == SlotType.Hotbar);
             }
-            if (isCraftingSlot)
+            if (slotType == SlotType.Crafting)
             {
                 inventory.cManager.analyzeItemList();
             }
+            
         };
 
         button_UI.MouseRightClickFunc = () =>
         {
+            dirtied = true;
             if (Input.GetKey(KeyCode.LeftShift))
             {
                 inventory.DropItem(heldItem);
@@ -205,16 +238,17 @@ public class InventorySlot : MonoBehaviour
             updateSlotValues();
             if (heldItem.itemType != Item.ItemType.Blank)
             {
-                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, isHotbarSlot);
+                Tooltip.instance.updateTooltip(true, inventory.generateTooltipForItem(heldItem), rectTransform, slotType == SlotType.Hotbar);
             }
             else
             {
-                Tooltip.instance.updateTooltip(false, "", rectTransform, isHotbarSlot);
+                Tooltip.instance.updateTooltip(false, "", rectTransform, slotType == SlotType.Hotbar);
             }
-            if (isCraftingSlot)
+            if (slotType == SlotType.Crafting)
             {
                 inventory.cManager.analyzeItemList();
             }
+            
         };
 
         

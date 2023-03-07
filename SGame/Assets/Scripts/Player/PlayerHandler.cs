@@ -29,16 +29,19 @@ public class PlayerHandler : MonoBehaviour
 
     //Current Item we have equipped
     public Item currentItem;
+    //Action blockers
+    [HideInInspector] public List<string> mouseBlockers = new List<string>();
+    [HideInInspector] public List<string> KeyBlockers = new List<string>();
+    public bool ableToMouseLook = true;
+    public bool ableToKey = true;
 
-    
 
-  
-  
+
     void Awake()
     {
         anim = toolAnchor.GetComponent<Animator>();
         instance = this;
-        
+        StartCoroutine(CheckLockConditions());
     }
 
     // Update is called once per frame
@@ -104,5 +107,28 @@ public class PlayerHandler : MonoBehaviour
                 return;
         }
     }
-   
+    public IEnumerator CheckLockConditions()
+    {
+        if (mouseBlockers.Count != 0)
+        {
+            ableToMouseLook = false;
+            Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            ableToMouseLook = true;
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+        if (KeyBlockers.Count != 0)
+        {
+            ableToKey = false;
+        }
+        else
+        {
+            ableToKey = true;
+        }
+
+        yield return new WaitForSecondsRealtime(0.05f);
+        StartCoroutine(CheckLockConditions());
+    }
 }

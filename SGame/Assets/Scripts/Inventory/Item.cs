@@ -47,7 +47,11 @@ public class Item
         [InspectorName("Resources/Rock/Slate Rock")]
         SlateRock,
         [InspectorName("Resources/Wood/Oak Stick")]
-        OakStick
+        OakStick,
+        [InspectorName("Magic/Runes/FireballRune")]
+        FireballRune
+
+
 
     }
 
@@ -101,6 +105,9 @@ public class Item
                 return "Limestone Rock";
             case ItemType.SlateRock:
                 return "Slate Rock";
+            case ItemType.FireballRune:
+                return "Fireball Rune";
+                
         }
     }
 
@@ -146,6 +153,10 @@ public class Item
                 return "A small shell, once used to house a small creature";
             case ItemType.ShellAxe:
                 return "An axe with a blade made of shells, sacrificing durability for strength";
+            case ItemType.FireballRune:
+                return "A rune that grants access to the fire grenade spell";
+                
+                
 
         }
     }
@@ -153,13 +164,7 @@ public class Item
     {
         switch (itemType)
         {
-
-            case ItemType.Campfire:
-            case ItemType.Firepit:
-            case ItemType.StoneHatchet:
-            case ItemType.IronSword:
-            case ItemType.ShellAxe:
-
+            default:
                 return 1;
 
 
@@ -181,7 +186,7 @@ public class Item
 
 
             case ItemType.Blank:
-            default:
+            
                 return 6942069;
         }
     }
@@ -200,12 +205,13 @@ public class Item
             case ItemType.StoneHatchet:
             case ItemType.IronSword:
             case ItemType.ShellAxe:
+            case ItemType.FireballRune:
                 return false;
         }
     }
 
 
-
+    public Spell spell;
     public GameObject getModel()
     {
         switch (itemType)
@@ -249,7 +255,7 @@ public class Item
     private int tex;
     private bool generatedTex = false;
     
-
+    //Spell reference, if it has one
       
 
 
@@ -290,7 +296,9 @@ public class Item
                 {
                     return ItemAssets.Instance.shellSpriteTwo;
                 }
-
+            case ItemType.FireballRune: return ItemAssets.Instance.fireGrenadeRuneSprite;
+                
+            
                 
 
         }
@@ -310,6 +318,7 @@ public class Item
         return false;
     }
 
+    
     public float getAttributeValue(ItemAttribute.AttributeName attribute)
     {
         foreach (ItemAttribute a in attributes)
@@ -392,12 +401,14 @@ public class ItemAttribute
         MaxDurability,
         EnablesBuilding,
         Damage,
-        Type
+        Type, 
+        AllowsSpell,
 
     }
     public AttributeName attribute;
     public float value;
     public string info;
+
 }
 [Serializable]
 public class dropItem

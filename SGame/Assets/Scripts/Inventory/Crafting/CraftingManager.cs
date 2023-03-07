@@ -52,6 +52,9 @@ public class CraftingManager : MonoBehaviour
     //If the player is using the search bar or not
     public bool isTyping;
 
+
+    //Blocker
+    private string searchbarBlocker = "Crafting search bar";
     // Start is called before the first frame update
     void Start()
     {
@@ -63,7 +66,29 @@ public class CraftingManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        isTyping = searchBar.isFocused;
+        if (searchBar.isFocused)
+        {
+            if (PlayerHandler.instance.KeyBlockers.Contains(searchbarBlocker))
+            {
+                //Nothing
+            }
+            else
+            {
+                PlayerHandler.instance.KeyBlockers.Add(searchbarBlocker);
+            }
+        }
+        else
+        {
+            if (PlayerHandler.instance.KeyBlockers.Contains(searchbarBlocker))
+            {
+                PlayerHandler.instance.KeyBlockers.Remove(searchbarBlocker);
+            }
+            else
+            {
+                //Nothing
+            }
+        }
+       
     }
 
 

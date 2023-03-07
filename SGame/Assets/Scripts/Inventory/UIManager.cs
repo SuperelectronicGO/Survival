@@ -18,14 +18,17 @@ public class UIManager : MonoBehaviour
 
     private Inventory inventory;
     private CraftingManager cManager;
+    private RuneManager runeManager;
     private Animator inventoryAnimator;
-    
+
+    private string inventoryBlocker = "Inventory Open";
     // Start is called before the first frame update
     void Start()
     {
         inventory = inventoryObject.GetComponent<Inventory>();
         inventoryAnimator = inventoryObject.GetComponent<Animator>();
         cManager = inventoryObject.GetComponent<CraftingManager>();
+        runeManager = GetComponent<RuneManager>();
         if (inventory.mouseItem.itemType != Item.ItemType.Blank)
         {
             inventory.AddItem(inventory.mouseItem);
@@ -50,9 +53,12 @@ public class UIManager : MonoBehaviour
                     cManager.currentRecipeType = CraftingScriptable.recipeType.All;
                     cManager.displayValidRecipes(true);
                     inventory.refreshSlotValues(inventory.slots);
+                    runeManager.refreshRuneSlotValues();
                     cManager.refreshCraftingSlotValues();
                     inventoryObject.SetActive(true);
                     inventoryOpen = true;
+                    PlayerHandler.instance.mouseBlockers.Add(inventoryBlocker);
+                    //Add a blocker to the player controller
                     return;
                 case true:
                     if (inventory.mouseItem.itemType != Item.ItemType.Blank)
@@ -63,12 +69,15 @@ public class UIManager : MonoBehaviour
                         inventory.mouseText.text = string.Empty;
                         inventory.setMouseImage(false);
                         
+
                     }
                     cManager.returnCraftingItems();
                     inventoryObject.SetActive(false);
                     inventoryOpen = false;
+                    PlayerHandler.instance.mouseBlockers.Remove(inventoryBlocker);
                     return;
             }
+
         }
        
 
@@ -103,13 +112,6 @@ public class UIManager : MonoBehaviour
             }
         }
 
-        if (!inventoryOpen && !settingsOpen && !mapOpen)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.None;
-        }
+       
     }
 }

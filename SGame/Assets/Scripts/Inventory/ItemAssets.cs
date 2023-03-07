@@ -46,6 +46,11 @@ public class ItemAssets : MonoBehaviour
     [Header("Melee Weapons")]
     public Sprite ironSwordSprite;
 
+    [Header("Runes")]
+    public Sprite fireGrenadeRuneSprite;
+    public Sprite eyeOfTheHunterRuneSprite;
+
+
 
 
     [Header("")]
