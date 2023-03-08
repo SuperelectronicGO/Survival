@@ -78,4 +78,8 @@ public class ItemAssets : MonoBehaviour
     [Header("Weapons")]
     public GameObject ironSwordModel;
 
+
+
+    [Header("Spells")]
+    public GameObject fireballSpellObject;
 }

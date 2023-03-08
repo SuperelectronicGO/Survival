@@ -22,23 +22,23 @@ public class HotbarManager : MonoBehaviour
         {
             currentSlot = 1;
             hotbarSlots[0].selected = true;
-            hotbarSlots[0].updateSlotValues();
             hotbarSlots[1].selected = false;
             hotbarSlots[2].selected = false;
             hotbarSlots[3].selected = false;
             hotbarSlots[4].selected = false;
             hotbarSlots[5].selected = false;
+            UpdateAllSlotValues();
         }
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             currentSlot = 2;
             hotbarSlots[0].selected = false;
             hotbarSlots[1].selected = true;
-            hotbarSlots[1].updateSlotValues();
             hotbarSlots[2].selected = false;
             hotbarSlots[3].selected = false;
             hotbarSlots[4].selected = false;
             hotbarSlots[5].selected = false;
+            UpdateAllSlotValues();
         }
         if (Input.GetKeyDown(KeyCode.Alpha3))
         {
@@ -46,10 +46,10 @@ public class HotbarManager : MonoBehaviour
             hotbarSlots[0].selected = false;
             hotbarSlots[1].selected = false;
             hotbarSlots[2].selected = true;
-            hotbarSlots[2].updateSlotValues();
             hotbarSlots[3].selected = false;
             hotbarSlots[4].selected = false;
             hotbarSlots[5].selected = false;
+            UpdateAllSlotValues();
         }
         if (Input.GetKeyDown(KeyCode.Alpha4))
         {
@@ -58,9 +58,9 @@ public class HotbarManager : MonoBehaviour
             hotbarSlots[1].selected = false;
             hotbarSlots[2].selected = false;
             hotbarSlots[3].selected = true;
-            hotbarSlots[3].updateSlotValues();
             hotbarSlots[4].selected = false;
             hotbarSlots[5].selected = false;
+            UpdateAllSlotValues();
         }
         if (Input.GetKeyDown(KeyCode.Alpha5))
         {
@@ -70,8 +70,8 @@ public class HotbarManager : MonoBehaviour
             hotbarSlots[2].selected = false;
             hotbarSlots[3].selected = false;
             hotbarSlots[4].selected = true;
-            hotbarSlots[4].updateSlotValues();
             hotbarSlots[5].selected = false;
+            UpdateAllSlotValues();
         }
         if (Input.GetKeyDown(KeyCode.Alpha6))
         {
@@ -82,8 +82,23 @@ public class HotbarManager : MonoBehaviour
             hotbarSlots[3].selected = false;
             hotbarSlots[4].selected = false;
             hotbarSlots[5].selected = true;
-            hotbarSlots[5].updateSlotValues();
+            UpdateAllSlotValues();
         }
         player.currentSlot = hotbarSlots[currentSlot - 1];
+    }
+    public void DeselectAllSlots()
+    {
+        for(int i=0; i<hotbarSlots.Length; i++)
+        {
+            hotbarSlots[i].selected = false;
+            hotbarSlots[i].updateSlotValues();
+        }
+    }
+    public void UpdateAllSlotValues()
+    {
+        for (int i = 0; i < hotbarSlots.Length; i++)
+        {
+            hotbarSlots[i].updateSlotValues();
+        }
     }
 }

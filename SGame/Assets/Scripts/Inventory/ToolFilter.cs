@@ -10,7 +10,7 @@ public class ToolFilter : MonoBehaviour
 
     public int currentDamage = 0;
  
- 
+     //Set the tool/weapon we want to be active
     public void filterTools(Item.ItemType type)
     {
         for(int i=0; i<tools.Length; i++)
@@ -32,6 +32,7 @@ public class ToolFilter : MonoBehaviour
 
 
     }
+    //Method to use raycasts to detect a collision
     public void collisionExecution()
     {
 

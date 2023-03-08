@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class PlayerHandler : MonoBehaviour
 {
     //Declare a singleton for this script
-    public static PlayerHandler instance;
+    public static PlayerHandler instance { get; private set; }
     
     [Header ("Inventory Logic")]
 
@@ -18,6 +18,9 @@ public class PlayerHandler : MonoBehaviour
     //Current slot we have equipped
     [HideInInspector] public InventorySlot currentSlot;
 
+    //Current Item we have equipped
+    public Item currentItem;
+
     //Gameobject with the animator component
     public GameObject toolAnchor;
 
@@ -25,10 +28,8 @@ public class PlayerHandler : MonoBehaviour
     [SerializeField] private ToolFilter toolFilter;
     
     //Animator for the player
-    private Animator anim;
+    public Animator anim;
 
-    //Current Item we have equipped
-    public Item currentItem;
     //Action blockers
     [HideInInspector] public List<string> mouseBlockers = new List<string>();
     [HideInInspector] public List<string> KeyBlockers = new List<string>();
@@ -47,14 +48,14 @@ public class PlayerHandler : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        //If the current item we have equipped isn't the one in our active slot, then equip the new item, and play a pullout animation if needed
         if (currentItem != currentSlot.heldItem)
         {
             OnEquip(currentSlot.heldItem);
             currentItem = currentSlot.heldItem;
         }
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0)&&ableToMouseLook)
         {
-           
            
             UseItem(currentSlot.heldItem);
         }
@@ -87,9 +88,9 @@ public class PlayerHandler : MonoBehaviour
         }
       
     }
-    public void calculateCurrentItemStats()
+    public void SetActiveSlot(InventorySlot slot)
     {
-
+        currentSlot = slot;
     }
     public void UseItem(Item item)
     {

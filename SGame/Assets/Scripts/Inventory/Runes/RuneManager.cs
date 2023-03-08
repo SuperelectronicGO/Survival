@@ -31,6 +31,9 @@ public class RuneManager : MonoBehaviour
             slots[i].updateSlotValues();
         }
     }
+    public InventorySlot GetSpellSlot(int index) {
+        return slots[index];
+    }
     public IEnumerator checkSlotsForSpells()
     {
         for(int i=0; i<slots.Count; i++)
