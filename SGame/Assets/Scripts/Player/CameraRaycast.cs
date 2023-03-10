@@ -5,56 +5,101 @@ using UnityEngine.UI;
 using TMPro;
 public class CameraRaycast : MonoBehaviour
 {
-    public Camera camera;
+    public Camera rayCamera;
     public TextMeshProUGUI displayText;
-    public GameObject selectedObject;
+    [SerializeField] private GameObject selectedObject;
+    [SerializeField] private GameObject oldObject;
+    private ReturnRaycastData raycastData;
     [SerializeField] private Inventory inventory;
-    void Update()
+    [SerializeField] private LayerMask ignoreLayers;
+    void FixedUpdate()
     {
-
         RaycastHit hit;
-        Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = rayCamera.ScreenPointToRay(Input.mousePosition);
+        //Raycast to check interactability
+        if (Physics.Raycast(ray, out hit, maxDistance:15, layerMask:~ignoreLayers)) {
 
-        if (Physics.Raycast(ray, out hit)) {
-
-
+            //If we hit, check if its the same item we hit previously. If its not, call the function to update the data
+            //Might need to be changed later if object values update without player interaction.
             selectedObject = hit.transform.gameObject;
+            Debug.Log(selectedObject.name);
+            if (selectedObject != oldObject)
+            {
+                //Set the old object to be the current one
+                oldObject = selectedObject;
+                //Check if this object has the returnRaycastData script, and if it does, cache it, and run the raycastDataOnce function
+                if (selectedObject.GetComponent<ReturnRaycastData>() != null)
+                {
+                    raycastData = selectedObject.GetComponent<ReturnRaycastData>();
+                    RunRaycastLogicOnce();
+                }
+                else{
+                    raycastData = null;
+                    SendDeactivateItemText();
+                }
+            }
 
 
+        
 
-        }
+      
 
-        if (selectedObject!=null) { 
-        if (selectedObject.GetComponent<ReturnRaycastData>() != null)
+    }
+
+    }
+    public delegate void UpdateWorldText(string displayText, GameObject objectToFollow, bool enableText);
+    public static event UpdateWorldText onSetWorldText;
+    public void RunRaycastLogicOnce()
+    {
+        if (raycastData != null)
         {
-            ReturnRaycastData rayData = selectedObject.GetComponent<ReturnRaycastData>();
-            if (rayData.isItem)
+            if (raycastData.isItem)
             {
                 Item item = selectedObject.GetComponent<DroppedItem>().item;
-                if (item.Stackable()) {
-                    displayText.text = item.itemName() + " x" + item.amount;
+                if (item.Stackable())
+                {
+                   
+                    if (onSetWorldText != null)
+                    {
+                        onSetWorldText(item.itemName() + " x" + item.amount, selectedObject, true);
+                    }
                 }
-                else {
-                    displayText.text = item.itemName();
+                else
+                {
+                    
+                    if (onSetWorldText != null)
+                    {
+                        onSetWorldText(item.itemName(), selectedObject, true);
+                    }
                 }
 
 
 
 
-                if (Input.GetKeyDown(KeyCode.F)) {
-                    inventory.AddItem(selectedObject.GetComponent<DroppedItem>().item);
-                    Destroy(selectedObject);
-                }
+             
             }
 
         }
         else
         {
-            selectedObject = null;
+            onSetWorldText(null, null, false);
             displayText.text = string.Empty;
         }
-
     }
-
+    public void SendDeactivateItemText()
+    {
+        onSetWorldText(null, null, false);
     }
+    
+    public void CheckRaycastOnKeypress()
+    {
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            inventory.AddItem(selectedObject.GetComponent<DroppedItem>().item);
+            Destroy(selectedObject);
+        }
+    }
+    
+
+
 }

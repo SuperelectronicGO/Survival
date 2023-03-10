@@ -107,7 +107,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal3:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: ebe6b5b5ccaf28d429ead596115703ac, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -135,7 +135,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Splat3:
-        m_Texture: {fileID: 2800000, guid: eacdd1616e4b79f4ba1d6758566b113c, type: 3}
+        m_Texture: {fileID: 2800000, guid: 60a4b2057de346c4b8ff4ce3c3645d7b, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TerrainColorTintTexture:
@@ -252,7 +252,7 @@ Material:
     - _SplatUV0: {r: 1, g: 1, b: 0, a: 0}
     - _SplatUV1: {r: 5, g: 5, b: 0, a: 0}
     - _SplatUV2: {r: 20, g: 20, b: 0, a: 0}
-    - _SplatUV3: {r: 1, g: 1, b: 0, a: 0}
+    - _SplatUV3: {r: 15, g: 15, b: 0, a: 0}
     - _TerrainHeightmapScale: {r: 0.9765625, g: 1600.0732, b: 0.9765625, a: 800}
     - _TerrainMetallic: {r: 0, g: 0, b: 0, a: 0}
     - _TerrainNormalScale: {r: 1, g: 1, b: 1, a: 1}

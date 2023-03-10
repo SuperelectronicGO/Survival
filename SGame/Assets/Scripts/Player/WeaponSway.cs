@@ -40,7 +40,6 @@ public class WeaponSway : MonoBehaviour
     {
         float moveX = Input.GetAxis("Mouse X") * amount * sensitivity;
         float moveY = Input.GetAxis("Mouse Y") * amount * sensitivity;
-        Debug.Log(moveX);
         moveX = Mathf.Clamp(moveX, -maxSway, maxSway);
         moveY = Mathf.Clamp(moveY, -maxSway, maxSway);
         Vector3 finalPos = new Vector3(-moveX, 0, moveY);
