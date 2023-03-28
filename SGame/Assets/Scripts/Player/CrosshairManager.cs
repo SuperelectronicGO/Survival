@@ -25,19 +25,13 @@ public class CrosshairManager : MonoBehaviour
         instance = this;
         mainCrosshairRect = crosshair.GetComponent<RectTransform>();
         secondaryCrosshairRect = secondaryCrosshairComponent.GetComponent<RectTransform>();
+        SetCrosshair(CrosshairType.Default);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-            SetCrosshair(CrosshairType.Default);
-        }
-        if (Input.GetKeyDown(KeyCode.O))
-        {
-            SetCrosshair(CrosshairType.Fireball);
-        }
+        
     }
     private RectTransform mainCrosshairRect;
     private RectTransform secondaryCrosshairRect;
@@ -95,6 +89,20 @@ public class CrosshairManager : MonoBehaviour
                 }
                 break;
         }
+    }
+    public void ChangeCrosshairOnItem(Item item)
+    {
+        Debug.Log(item.spell.type.ToString());
+        switch (item.spell.type)
+        {
+            case Spell.SpellType.Fireball:
+                SetCrosshair(CrosshairType.Fireball);
+                break;
+            case Spell.SpellType.None:
+                SetCrosshair(CrosshairType.Default);
+                break;
+        }
+
     }
 }
 

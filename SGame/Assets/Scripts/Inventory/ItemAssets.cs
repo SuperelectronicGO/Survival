@@ -49,6 +49,7 @@ public class ItemAssets : MonoBehaviour
     [Header("Runes")]
     public Sprite fireGrenadeRuneSprite;
     public Sprite eyeOfTheHunterRuneSprite;
+    public Sprite voidFireballRuneSprite;
 
 
 
@@ -82,4 +83,5 @@ public class ItemAssets : MonoBehaviour
 
     [Header("Spells")]
     public GameObject fireballSpellObject;
+    public GameObject voidFireballSpellObject;
 }

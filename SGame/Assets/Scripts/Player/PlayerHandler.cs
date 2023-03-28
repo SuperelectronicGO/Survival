@@ -53,6 +53,7 @@ public class PlayerHandler : MonoBehaviour
         {
             OnEquip(currentSlot.heldItem);
             currentItem = currentSlot.heldItem;
+            CrosshairManager.instance.ChangeCrosshairOnItem(currentItem);
         }
         if (Input.GetMouseButtonDown(0)&&ableToMouseLook)
         {

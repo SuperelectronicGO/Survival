@@ -1113,7 +1113,9 @@ public class WorldGen : MonoBehaviour
                                         tileObjects = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects;
                                         biomeIndex = i;
                                         biomeDensityAmnt = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeDensity;
-                                    }
+                                        //Set max weight amount
+                                        maxWeightAmnt = maxObjectWeights[subBiomeNumber, biomeIndex];
+                                }
                                     else
                                     {
                                         //The biome is blended, add its weight to the blend array and blendAmount, and mark that we must blend
@@ -1168,6 +1170,7 @@ public class WorldGen : MonoBehaviour
                                 {
                                     //Pick a random object from the list depending on weights
                                     int randomWeight = Random.Range(0, maxWeightAmnt);
+                       
                                     //Store the object we want
                                     ObjectScriptable selectedOb = null;
                                     /* Object is found by: First picking a random number between 0, and the weight of all objects in this biome added up.
@@ -1219,6 +1222,7 @@ public class WorldGen : MonoBehaviour
                                     {
                                         objectRotation = spotNormal;
                                     }
+                                    objectRotation.y = Random.Range(0, 360);
                                     //Spawn the object
                                     GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
                                     if (selectedOb.terrainBlending)

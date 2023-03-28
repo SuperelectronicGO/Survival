@@ -229,6 +229,20 @@ public class Inventory : MonoBehaviour
                         tooltipString += "\n";
                     }
                     break;
+                case ItemAttribute.AttributeName.AllowsSpell:
+                    for (int j = 0; j < item.spell.attributes.Count; j++)
+                    {
+                        switch (item.spell.attributes[j].attribute)
+                        {
+                            case SpellAttribute.AttributeType.damage:
+                                tooltipString += item.spell.attributes[j].value + " damage\n";
+                                break;
+                            case SpellAttribute.AttributeType.chargeSpeed:
+                                tooltipString += "Charge speed: " + item.spell.attributes[j].value + "\n";
+                                break;
+                        }
+                    }
+                    break;
             }
         }
             

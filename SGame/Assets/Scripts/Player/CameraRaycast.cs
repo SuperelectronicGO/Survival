@@ -22,7 +22,6 @@ public class CameraRaycast : MonoBehaviour
             //If we hit, check if its the same item we hit previously. If its not, call the function to update the data
             //Might need to be changed later if object values update without player interaction.
             selectedObject = hit.transform.gameObject;
-            Debug.Log(selectedObject.name);
             if (selectedObject != oldObject)
             {
                 //Set the old object to be the current one
@@ -38,7 +37,13 @@ public class CameraRaycast : MonoBehaviour
                     SendDeactivateItemText();
                 }
             }
-
+            if (raycastData != null)
+            {
+                if (raycastData.isItem)
+                {
+                    CheckRaycastOnKeypress();
+                }
+            }
 
         
 

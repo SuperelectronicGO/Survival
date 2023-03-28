@@ -49,7 +49,9 @@ public class Item
         [InspectorName("Resources/Wood/Oak Stick")]
         OakStick,
         [InspectorName("Magic/Runes/FireballRune")]
-        FireballRune
+        FireballRune,
+        [InspectorName("Magic/Runes/VoidFireballRune")]
+        VoidFireballRune
 
 
 
@@ -107,6 +109,8 @@ public class Item
                 return "Slate Rock";
             case ItemType.FireballRune:
                 return "Fireball Rune";
+            case ItemType.VoidFireballRune:
+                return "Void Fireball Rune";
                 
         }
     }
@@ -154,7 +158,9 @@ public class Item
             case ItemType.ShellAxe:
                 return "An axe with a blade made of shells, sacrificing durability for strength";
             case ItemType.FireballRune:
-                return "A rune that grants access to the fire grenade spell";
+                return "A rune that grants access to the fireball spell";
+            case ItemType.VoidFireballRune:
+                return "A rune that grants access to the void fireball spell";
                 
                 
 
@@ -206,6 +212,7 @@ public class Item
             case ItemType.IronSword:
             case ItemType.ShellAxe:
             case ItemType.FireballRune:
+            case ItemType.VoidFireballRune:
                 return false;
         }
     }
@@ -297,7 +304,7 @@ public class Item
                     return ItemAssets.Instance.shellSpriteTwo;
                 }
             case ItemType.FireballRune: return ItemAssets.Instance.fireGrenadeRuneSprite;
-                
+            case ItemType.VoidFireballRune: return ItemAssets.Instance.voidFireballRuneSprite;
             
                 
 

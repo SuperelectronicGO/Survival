@@ -28,7 +28,7 @@ Material:
   m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2450
   stringTagMap: {}
   disabledShaderPasses: []
   m_SavedProperties:
@@ -64,12 +64,12 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AmbientOcclusion: 0.5
+    - _AmbientOcclusion: 0
     - _BILLBOARDFACECAMPOS: 0
     - _Cutoff: 0.5
-    - _GradientPower: 0.3
+    - _GradientPower: 0
     - _IsBillboard: 0
-    - _NoiseSpread: 0.1
+    - _NoiseSpread: 0
     - _QueueControl: 0
     - _QueueOffset: 0
     - _WindIdleSway: 0.6
@@ -78,8 +78,8 @@ Material:
     - _WindWaveTint: 0.5
     - _WindWavesOn: 0
     m_Colors:
-    - _DryColor: {r: 0.6509434, g: 0.6509434, b: 0.6509434, a: 0}
-    - _HealthyColor: {r: 0.7264151, g: 0.7264151, b: 0.7264151, a: 0}
+    - _DryColor: {r: 1, g: 1, b: 1, a: 0}
+    - _HealthyColor: {r: 1, g: 1, b: 1, a: 0}
     - _WindVector: {r: 0.4, g: 0.8, b: 0, a: 0}
     - _WindWaveTintColor: {r: 0.07450979, g: 0, b: 1, a: 0}
   m_BuildTextureStacks: []
