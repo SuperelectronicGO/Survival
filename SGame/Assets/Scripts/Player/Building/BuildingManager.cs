@@ -288,7 +288,10 @@ public class BuildingManager : MonoBehaviour
         }
 
     }
-    
+    public void setPlayer(GameObject plr)
+    {
+        player = plr;
+    }
 }
 
 //Class for "building prefab storage'

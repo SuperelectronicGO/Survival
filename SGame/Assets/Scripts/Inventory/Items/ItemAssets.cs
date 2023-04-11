@@ -55,29 +55,21 @@ public class ItemAssets : MonoBehaviour
 
 
     [Header("")]
+    [Header("Default Item Template")]
+    public GameObject itemTemplate;
+
+
     [Header("")]
     [Header("")]
-    [Header("<b>Models</b>")]
-    public GameObject bagModel;
-    [Header("Resources")]
-    public GameObject ashLogModel;
-    public GameObject beechLogModel;
-    public GameObject birchLogModel;
-    public GameObject oakLogModel;
-    public GameObject spruceLogModel;
-    public GameObject oakStickModel;
-    public GameObject fieldstoneRockModel;
-    public GameObject limestoneRockModel;
-    public GameObject slateRockModel;
-    public GameObject shellModel;
+    [Header("Constructors")]
+    public ItemSpawnScriptable oakLogSpawnScriptable;
+    public ItemSpawnScriptable bagScriptable;
 
 
-    [Header("Tools")]
-    public GameObject stoneHatchetModel;
-    public GameObject shellAxeModel;
 
-    [Header("Weapons")]
-    public GameObject ironSwordModel;
+
+
+
 
 
 

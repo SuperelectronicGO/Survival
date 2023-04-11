@@ -8,13 +8,7 @@ public class HotbarManager : MonoBehaviour
     public PlayerHandler player;
     public Color selectedColor;
     private int currentSlot = 1;
-    // Start is called before the first frame update
-    void Start()
-    {
-        hotbarSlots[0].selected = true;
-        player.currentSlot = hotbarSlots[0];
-    }
-
+   
     // Update is called once per frame
     void Update()
     {
@@ -93,6 +87,17 @@ public class HotbarManager : MonoBehaviour
     {
         hotbarSlots[currentSlot - 1].selected = true;
         player.currentSlot = hotbarSlots[currentSlot - 1];
+    }
+    public void FirstTimeSlotEnable()
+    {
+        currentSlot = 1;
+        hotbarSlots[0].selected = true;
+        hotbarSlots[1].selected = false;
+        hotbarSlots[2].selected = false;
+        hotbarSlots[3].selected = false;
+        hotbarSlots[4].selected = false;
+        hotbarSlots[5].selected = false;
+        UpdateAllSlotValues();
     }
     public void DeselectAllSlots()
     {

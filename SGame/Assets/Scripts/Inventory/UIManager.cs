@@ -58,6 +58,7 @@ public class UIManager : MonoBehaviour
                     inventoryObject.SetActive(true);
                     inventoryOpen = true;
                     PlayerHandler.instance.mouseBlockers.Add(inventoryBlocker);
+                    
                     //Add a blocker to the player controller
                     return;
                 case true:

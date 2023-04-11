@@ -38,7 +38,7 @@ public class InventorySlot : MonoBehaviour
     private Button_UI button_UI;
     public bool dirtied = false;
     // Start is called before the first frame update
-    void Awake()
+    public void Awake()
     {
         tooltip = inventory.tooltipObject.GetComponent<Tooltip>();
         rectTransform = GetComponent<RectTransform>();
@@ -200,7 +200,7 @@ public class InventorySlot : MonoBehaviour
             dirtied = true;
             if (Input.GetKey(KeyCode.LeftShift))
             {
-                inventory.DropItem(heldItem);
+                inventory.DropItem(heldItem.Clone<Item>());
                 heldItem = inventory.blankItem;
               
             }

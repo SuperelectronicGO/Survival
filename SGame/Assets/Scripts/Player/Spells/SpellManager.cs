@@ -1,8 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-public class SpellManager : MonoBehaviour
+using Unity.Netcode;
+public class SpellManager : NetworkBehaviour
 {
     [SerializeField] private KeyCode spellKeyOne, spellKeyTwo, spellKeyThree;
     public static SpellManager instance { get; private set; }
@@ -15,47 +15,53 @@ public class SpellManager : MonoBehaviour
     private float chargeAmount = 0;
     private CrosshairManager crosshairManager;
     [SerializeField] private HotbarManager hotbarManager;
-    private PlayerHandler player;
+    [SerializeField] private PlayerHandler player;
     [SerializeField] private Transform spellAnchor;
 
     // Start is called before the first frame update
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        instance = this;
-        player = PlayerHandler.instance;
+        if (IsOwner)
+        {
+            instance = this;
+        }
          
     }
 
     // Update is called once per frame
     void Update()
     {
-        //Handle charging spells
-        if (player.ableToMouseLook && Input.GetMouseButton(1) && !(chargeAmount > 99.9f)&&player.currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+        if (IsOwner)
         {
-            OnSpellChargeChange(true);
-        }else if (chargeAmount > 0&&!Input.GetMouseButton(1))
-        {
-            OnSpellChargeChange(false);
-        }
+            //Handle charging spells
+            if (player.ableToMouseLook && Input.GetMouseButton(1) && !(chargeAmount > 99.9f) && player.currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+            {
+                OnSpellChargeChange(true);
+            }
+            else if (chargeAmount > 0 && !Input.GetMouseButton(1))
+            {
+                OnSpellChargeChange(false);
+            }
 
 
-        #region Check for spell activation keypresses
-        if (!player.currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
-        {
-            if (Input.GetKeyDown(spellKeyOne))
+            #region Check for spell activation keypresses
+            if (!player.currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
             {
-                CheckForSpellEquip(0);
+                if (Input.GetKeyDown(spellKeyOne))
+                {
+                    CheckForSpellEquip(0);
+                }
+                else if (Input.GetKeyDown(spellKeyTwo))
+                {
+                    CheckForSpellEquip(1);
+                }
+                else if (Input.GetKeyDown(spellKeyThree))
+                {
+                    CheckForSpellEquip(2);
+                }
             }
-            else if (Input.GetKeyDown(spellKeyTwo))
-            {
-                CheckForSpellEquip(1);
-            }
-            else if (Input.GetKeyDown(spellKeyThree))
-            {
-                CheckForSpellEquip(2);
-            }
+            #endregion
         }
-        #endregion
     }
     //Method to re-equip the last slot after a spell is finished
     public void ReEquipLastItem()
@@ -174,6 +180,14 @@ public class SpellManager : MonoBehaviour
        
     }
    
+    public void setHotbarManager(HotbarManager manager)
+    {
+        hotbarManager = manager;
+    }
+    public void setPlayer(PlayerHandler handler)
+    {
+        player = handler;
+    }
 
 }
 [System.Serializable]

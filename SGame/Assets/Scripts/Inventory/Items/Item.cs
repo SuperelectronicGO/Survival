@@ -2,13 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-
-
+using Unity.Collections;
+using Unity.Netcode;
 [Serializable]
 
 public class Item
 {
-
+    //REMEMBER TO UPDATE ITEM STRUCT IN ALL LOCATIONS!
     public enum ItemType
     {
 
@@ -219,44 +219,6 @@ public class Item
 
 
     public Spell spell;
-    public GameObject getModel()
-    {
-        switch (itemType)
-        {
-            default:
-            case ItemType.Campfire:
-            case ItemType.RockWall:
-            case ItemType.Firepit:
-            case ItemType.StakeWall:
-                return ItemAssets.Instance.bagModel;
-            case ItemType.AshLog:
-                return ItemAssets.Instance.ashLogModel;
-            case ItemType.BeechLog:
-                return ItemAssets.Instance.beechLogModel;
-            case ItemType.BirchLog:
-                return ItemAssets.Instance.birchLogModel;
-            case ItemType.OakLog:
-                return ItemAssets.Instance.oakLogModel;
-            case ItemType.SpruceLog:
-                return ItemAssets.Instance.spruceLogModel;
-            case ItemType.StoneHatchet:
-                return ItemAssets.Instance.stoneHatchetModel;
-            case ItemType.IronSword:
-                return ItemAssets.Instance.ironSwordModel;
-            case ItemType.FieldstoneRock:
-                return ItemAssets.Instance.fieldstoneRockModel;
-            case ItemType.LimestoneRock:
-                return ItemAssets.Instance.limestoneRockModel;
-            case ItemType.SlateRock:
-                return ItemAssets.Instance.slateRockModel;
-            case ItemType.OakStick:
-                return ItemAssets.Instance.oakStickModel;
-            case ItemType.Shell:
-                return ItemAssets.Instance.shellModel;
-            case ItemType.ShellAxe:
-                return ItemAssets.Instance.shellAxeModel;
-        }
-    }
     //For random textures
 
     private int tex;
@@ -394,13 +356,120 @@ public class Item
 
 
 
+    ///<summary>
+    ///Constructor that takes an Item struct and returns it as a class
+    ///</summary>
+    public Item ItemNetworkStructToClass(ItemNetworkStruct itemStruct)
+    {
+        Item item = new Item();
+        item.itemType = itemStruct.type;
+        item.amount = itemStruct.amount;
+        item.attributes = new List<ItemAttribute>();
+        item.spell = new Spell();
+        item.spell.type = itemStruct.spellType;
+        //Copy item attributes from the struct
+        string[] attributeInfos = itemStruct.attributeInfo.ToString().Split(new String[] { " <end> " }, StringSplitOptions.None);
+        for(int i=0; i<itemStruct.attributeNames.Length; i++)
+        {
+            item.attributes.Add(new ItemAttribute
+            {
+                attribute = itemStruct.attributeNames[i],
+                value = itemStruct.attributeValues[i],
+                info = attributeInfos[i]
+            });
+        }
+        //Copy spell attributes from the struct
+        item.spell.attributes = new List<SpellAttribute>();
+        for(int i=0; i<itemStruct.spellAttributeTypes.Length; i++)
+        {
+            
+            item.spell.attributes.Add(new SpellAttribute
+            {
+                attribute = itemStruct.spellAttributeTypes[i],
+                value = itemStruct.spellAttributeValues[i]
+            });
+        }
+        return item;
+    }
 
+    ///<summary>
+    ///Constructor that takes an Item class and returns it as a struct
+    ///</summary>
+    public ItemNetworkStruct ItemNetworkClassToStruct(Item item)
+    {
+        //Keep this - otherwise spell is null if its not a rune
+        if (item.spell == null)
+        {
+            item.spell = new Spell();
+        }
+        //Define a new itemStruct
+        
+        ItemNetworkStruct itemStruct = new ItemNetworkStruct
+        {
+            type = item.itemType,
+            amount = item.amount,
+            attributeNames = new ItemAttribute.AttributeName[item.attributes.Count],
+            attributeValues = new float[item.attributes.Count],
+            attributeInfo = "",
+            spellType = new Spell.SpellType(),
+            spellAttributeTypes = new SpellAttribute.AttributeType[item.spell.attributes.Count],
+            spellAttributeValues = new float[item.spell.attributes.Count]
+        };
+        
+        
 
-
+        //Copy over item attribute values
+        for (int i=0; i<item.attributes.Count; i++)
+        {
+            itemStruct.attributeNames[i] = item.attributes[i].attribute;
+            itemStruct.attributeValues[i] = item.attributes[i].value;
+            string addedString = item.attributes[i].info + " <end> ";
+            if ((itemStruct.attributeInfo + addedString).Length> 511) { throw new IndexOutOfRangeException("Attribute '"+item.attributes[i].attribute.ToString()+"' exceeds the 512 byte limit"); }
+            itemStruct.attributeInfo += addedString;
+                
+        }
+        //Copy over spell values
+        itemStruct.spellType = item.spell.type;
+        for(int i=0; i<item.spell.attributes.Count; i++)
+        {
+            itemStruct.spellAttributeTypes[i] = item.spell.attributes[i].attribute;
+            itemStruct.spellAttributeValues[i] = item.spell.attributes[i].value;
+        }
+        return itemStruct;
+    }
 }
 [Serializable]
-public class ItemAttribute
+public struct ItemNetworkStruct : INetworkSerializable
 {
+    public Item.ItemType type;
+    public int amount;
+    //Attribute values
+    public ItemAttribute.AttributeName[] attributeNames;
+    public float[] attributeValues;
+    public FixedString512Bytes attributeInfo;
+    //Spell values
+    public Spell.SpellType spellType;
+    public SpellAttribute.AttributeType[] spellAttributeTypes;
+    public float[] spellAttributeValues;
+    
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref type);
+        serializer.SerializeValue(ref amount);
+        serializer.SerializeValue(ref attributeNames);
+        serializer.SerializeValue(ref attributeValues);
+        serializer.SerializeValue(ref spellType);
+        serializer.SerializeValue(ref spellAttributeTypes);
+        serializer.SerializeValue(ref spellAttributeValues);
+        //Check to make sure value isn't null as we are using unmanaged types
+       // if (attributeInfos == null) { throw new NullReferenceException(); }
+        serializer.SerializeValue(ref attributeInfo);
+    }
+   
+}
+[Serializable]
+public class ItemAttribute {
+
     public enum AttributeName
     {
         Stackable,
@@ -417,6 +486,7 @@ public class ItemAttribute
     public string info;
 
 }
+
 [Serializable]
 public class dropItem
 {
@@ -425,6 +495,7 @@ public class dropItem
     public float chance;
     public Vector2 amount;
 }
+
 
 
 

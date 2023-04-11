@@ -70,4 +70,8 @@ public class WorldItemTextManager : MonoBehaviour
         var targetRotation = Quaternion.LookRotation(playerHead.position - itemText.transform.position);
         itemText.transform.rotation = Quaternion.Slerp(itemText.transform.rotation, targetRotation, 8 * Time.deltaTime);
     }
+    public void SetPlayerHead(Transform t)
+    {
+        playerHead = t;
+    }
 }

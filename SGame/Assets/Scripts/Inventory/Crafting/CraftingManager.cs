@@ -66,6 +66,7 @@ public class CraftingManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        
         if (searchBar.isFocused)
         {
             if (PlayerHandler.instance.KeyBlockers.Contains(searchbarBlocker))

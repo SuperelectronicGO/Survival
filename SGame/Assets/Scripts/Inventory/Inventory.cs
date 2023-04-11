@@ -85,6 +85,7 @@ public class Inventory : MonoBehaviour
     }
     public void AddItem(Item item)
     {
+        
         int amount = item.amount;
         
 
@@ -124,7 +125,7 @@ public class Inventory : MonoBehaviour
                     newItem.amount = amount;
                     newItem.attributes = item.attributes;
 
-                    slot.heldItem = newItem;
+                    slot.heldItem = item.Clone<Item>();
                     refreshSlotValues(slots);
                     return;
                 }
@@ -140,19 +141,13 @@ public class Inventory : MonoBehaviour
             }
         }
 
-        Item droppedItem = new Item();
-        droppedItem.itemType = item.itemType;
-        droppedItem.amount = amount;
-        droppedItem.attributes = item.attributes;
+        Item droppedItem = item.Clone<Item>();
         DropItem(droppedItem);
         refreshSlotValues(slots);
     }
     public void DropItem(Item item)
     {
-        Vector3 spawnPos = player.transform.position + (player.transform.forward*2);
-        spawnPos.y += .5f;
-        GameObject droppedItem = Instantiate(item.getModel(), spawnPos, Quaternion.identity);
-        droppedItem.GetComponent<DroppedItem>().item = item;
+        PlayerHandler.instance.DropItem(item);
         refreshSlotValues(slots);
     }
     public void RemoveItem(Item item, List<InventorySlot> slots)

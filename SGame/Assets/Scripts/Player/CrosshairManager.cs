@@ -2,8 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-
-public class CrosshairManager : MonoBehaviour
+using Unity.Netcode;
+public class CrosshairManager : NetworkBehaviour
 {
     public Canvas canvas;
     public static CrosshairManager instance;
@@ -20,18 +20,23 @@ public class CrosshairManager : MonoBehaviour
     public Sprite fireballCrosshairLeftSprite;
     public Sprite fireballCrosshairRightSprite;
     // Start is called before the first frame update
-    void Start()
+    
+    public override void OnNetworkSpawn()
     {
-        instance = this;
+        if (IsOwner)
+        {
+            instance = this;
+        }
+    }
+    public void LateSetup()
+    {
         mainCrosshairRect = crosshair.GetComponent<RectTransform>();
         secondaryCrosshairRect = secondaryCrosshairComponent.GetComponent<RectTransform>();
         SetCrosshair(CrosshairType.Default);
     }
-
     // Update is called once per frame
     void Update()
     {
-        
     }
     private RectTransform mainCrosshairRect;
     private RectTransform secondaryCrosshairRect;

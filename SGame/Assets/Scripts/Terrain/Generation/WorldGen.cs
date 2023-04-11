@@ -179,20 +179,7 @@ public class WorldGen : MonoBehaviour
     {
 
 
-        if (Input.GetKeyDown(KeyCode.Y))
-        {
-
-            int[,] convertedDetailMap = tDatas[1].GetDetailLayer(0, 0, 1024, 1024, 0);
-            float[,] cMap = new float[1024, 1024];
-            for (int y = 0; y < 1024; y++)
-            {
-                for (int x = 0; x < 1024; x++)
-                {
-                    cMap[x, y] = convertedDetailMap[x, y];
-                }
-            }
-            d.DrawNoiseMap(cMap);
-        }
+       
         if (Input.GetKeyDown(KeyCode.U))
         {
             // textureWorld();
@@ -1225,6 +1212,8 @@ public class WorldGen : MonoBehaviour
                                     objectRotation.y = Random.Range(0, 360);
                                     //Spawn the object
                                     GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
+                                    //Spawn the object on the server
+                                    spawnedObject.GetComponent<Unity.Netcode.NetworkObject>().Spawn(true);
                                     if (selectedOb.terrainBlending)
                                     {
 

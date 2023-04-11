@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-public class CameraRaycast : MonoBehaviour
+using Unity.Netcode;
+public class CameraRaycast : NetworkBehaviour
 {
+    private Item selectedItem;
     public Camera rayCamera;
-    public TextMeshProUGUI displayText;
     [SerializeField] private GameObject selectedObject;
     [SerializeField] private GameObject oldObject;
     private ReturnRaycastData raycastData;
@@ -14,6 +15,7 @@ public class CameraRaycast : MonoBehaviour
     [SerializeField] private LayerMask ignoreLayers;
     void FixedUpdate()
     {
+        if (!IsOwner) return;
         RaycastHit hit;
         Ray ray = rayCamera.ScreenPointToRay(Input.mousePosition);
         //Raycast to check interactability
@@ -30,6 +32,7 @@ public class CameraRaycast : MonoBehaviour
                 if (selectedObject.GetComponent<ReturnRaycastData>() != null)
                 {
                     raycastData = selectedObject.GetComponent<ReturnRaycastData>();
+
                     RunRaycastLogicOnce();
                 }
                 else{
@@ -41,7 +44,7 @@ public class CameraRaycast : MonoBehaviour
             {
                 if (raycastData.isItem)
                 {
-                    CheckRaycastOnKeypress();
+                    CheckItemRaycastOnKeypress();
                 }
             }
 
@@ -61,6 +64,7 @@ public class CameraRaycast : MonoBehaviour
             if (raycastData.isItem)
             {
                 Item item = selectedObject.GetComponent<DroppedItem>().item;
+                selectedItem = item;
                 if (item.Stackable())
                 {
                    
@@ -88,7 +92,6 @@ public class CameraRaycast : MonoBehaviour
         else
         {
             onSetWorldText(null, null, false);
-            displayText.text = string.Empty;
         }
     }
     public void SendDeactivateItemText()
@@ -96,15 +99,28 @@ public class CameraRaycast : MonoBehaviour
         onSetWorldText(null, null, false);
     }
     
-    public void CheckRaycastOnKeypress()
+    public void CheckItemRaycastOnKeypress()
     {
         if (Input.GetKeyDown(KeyCode.F))
         {
-            inventory.AddItem(selectedObject.GetComponent<DroppedItem>().item);
-            Destroy(selectedObject);
+            
+            inventory.AddItem(selectedItem);
+            PlayerHandler.instance.DestroyItemServerRPC(selectedObject);
+            return;
+            if (IsServer)
+            {
+                selectedObject.GetComponent<NetworkObject>().Despawn(true);
+            }
+            else
+            {
+                PlayerHandler.instance.DestroyItemServerRPC(selectedObject);
+            }
         }
     }
-    
+    public void setInventory(Inventory inv)
+    {
+        inventory = inv;
+    }
 
 
 }
