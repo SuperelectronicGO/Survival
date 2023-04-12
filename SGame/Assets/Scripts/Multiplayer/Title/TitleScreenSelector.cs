@@ -62,7 +62,7 @@ public class TitleScreenSelector : MonoBehaviour
     //Calls the StartHost function on Steams side and sets the screen to the lobby
     public void HostLobby()
     {
-        GameTitleNetworkManager.Instance.StartHost(maxLobbyPlayers, lobbyNameEnter.text);
+        GameNetworkManager.Instance.StartHost(maxLobbyPlayers, lobbyNameEnter.text);
         StartCoroutine(QueueScreen(4));
     }
     //Attempts to join a lobby with a specified ID
@@ -71,8 +71,14 @@ public class TitleScreenSelector : MonoBehaviour
         string IdStringEntered = lobbyIDEnter.text;
         Steamworks.SteamId Id =  new Steamworks.SteamId();
         Id.Value = ulong.Parse(IdStringEntered);
-        GameTitleNetworkManager.Instance.JoinLobby(Id);
+        GameNetworkManager.Instance.JoinLobby(Id);
         StartCoroutine(QueueScreen(4));
+
+        //Don't allow starting game if we are the host
+        if (!NetworkManager.Singleton.IsHost)
+        {
+            loadMainSceneButton.interactable = false;
+        }
     }
     public void AddLobbyToAvailable(string lobbyName)
     {
@@ -176,6 +182,8 @@ public class TitleScreenSelector : MonoBehaviour
     //Public void to load the main world scene
     public void LoadMainScene()
     {
+        GameNetworkManager.Instance.StopPlayerListRefresh();
+        Debug.Log("Loading Scene [Main]...");
         NetworkManager.Singleton.SceneManager.LoadScene("Main", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 

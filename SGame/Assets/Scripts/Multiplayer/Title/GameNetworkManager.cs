@@ -9,10 +9,10 @@ using Unity.Netcode;
 using Steamworks.ServerList;
 using Steamworks.Ugc;
 using System.Threading.Tasks;
-public class GameTitleNetworkManager : MonoBehaviour
+public class GameNetworkManager : MonoBehaviour
 {
     //Instance of this script that can be used from anywhere
-    public static GameTitleNetworkManager Instance { get; private set; } = null;
+    public static GameNetworkManager Instance { get; private set; } = null;
     //The facepunch transport we are using
     public FacepunchTransport transport = null;
     //The current lobby the player resides in
@@ -77,6 +77,8 @@ public class GameTitleNetworkManager : MonoBehaviour
         NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
         NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnectedCallback;
+        
+        
         SteamClient.Shutdown();
     }
 
@@ -122,6 +124,8 @@ public class GameTitleNetworkManager : MonoBehaviour
         {
             currentLobby = await SteamMatchmaking.JoinLobbyAsync(lobbyId);
             Debug.Log($"Joined the lobby of {currentLobby.Value.GetData("name")}");
+            TitleScreenSelector.instance.finishedLoading = true;
+            StartCoroutine(UpdateLobbyPlayerInfo());
         }
         catch
         {
@@ -192,7 +196,19 @@ public class GameTitleNetworkManager : MonoBehaviour
     }
     #endregion
 
+    #region Scene Load Callbacks
+    public void SpawnPlayerOnSceneLoad()
+    {
+
+    }
+    #endregion
+
     #region Lobby Functions
+    //Public void that stops refreshing the lobby list
+    public void StopPlayerListRefresh()
+    {
+        StopCoroutine(UpdateLobbyPlayerInfo());
+    }
     //Method that updates the player list in a lobby
     private IEnumerator UpdateLobbyPlayerInfo()
     {

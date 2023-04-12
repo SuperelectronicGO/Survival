@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-
+using Unity.Netcode;
 public class PlayerNetwork : MonoBehaviour
 {
 
     public static PlayerNetwork instance;
+    [SerializeField] private GameObject playerPrefab;
     //Store a reference to every type the player will need upon spawning
     [Header("Main Canvases")]
     [SerializeField] private Canvas mainCanvasOne;
@@ -25,12 +26,16 @@ public class PlayerNetwork : MonoBehaviour
     [SerializeField] private Image secondaryCrosshairComponent;
     [Header("World Text")]
     [SerializeField] private WorldItemTextManager worldTextManager;
-    
-    private void Start()
+
+    private void Awake()
     {
         instance = this;
-       
+        GameObject plr = Instantiate(playerPrefab, transform.position, Quaternion.identity);
+        plr.GetComponent<NetworkObject>().SpawnAsPlayerObject(NetworkManager.Singleton.LocalClientId);
+        PlayerHandler.instance = plr.GetComponent<PlayerHandler>();
+        Debug.Log($"Spawned player object and playerhandler instance: {PlayerHandler.instance}");
     }
+    
 
     // Update is called once per frame
     void Update()
@@ -40,7 +45,6 @@ public class PlayerNetwork : MonoBehaviour
     public void assignPlayerStartValues(GameObject playerObj)
     {
         crosshairManager = playerObj.GetComponent<CrosshairManager>();
-        PlayerHandler.instance = playerObj.GetComponent<PlayerHandler>();
         instance.hotbarManager = hotbarManager;
         mainCanvasOne.gameObject.SetActive(true);
         mainCanvasTwo.gameObject.SetActive(true);

@@ -48,7 +48,7 @@ public class PlayerHandler : NetworkBehaviour
     {
         if (IsOwner)
         {
-            instance = this;
+            
             Debug.Log("Is owner");
             
             StartCoroutine(CheckLockConditions());
