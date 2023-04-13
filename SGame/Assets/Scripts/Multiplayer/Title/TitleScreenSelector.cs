@@ -7,6 +7,7 @@ using System;
 using Unity.Collections;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using UnityEngine.SceneManagement;
 
 public class TitleScreenSelector : MonoBehaviour
 {
