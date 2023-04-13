@@ -17,6 +17,7 @@ public class GameNetworkManager : MonoBehaviour
     public FacepunchTransport transport = null;
     //The current lobby the player resides in
     public Lobby? currentLobby{ get; private set; } = null;
+    public SteamServer currentSteamServer;
     //Internet request used to gather a list of available servers
     private Steamworks.ServerList.Internet Request = new Steamworks.ServerList.Internet();
     //The ID of our app (not used)
@@ -80,6 +81,7 @@ public class GameNetworkManager : MonoBehaviour
         
         
         SteamClient.Shutdown();
+        
     }
 
     /*  Starts the host and creates a steam lobby for that game. The lobby has its name set as well, 
@@ -93,7 +95,9 @@ public class GameNetworkManager : MonoBehaviour
         {
           currentLobby = await SteamMatchmaking.CreateLobbyAsync();
             currentLobby.Value.SetData("name", lobbyName);
+            currentLobby.Value.SetData("password", "amongus");
             Debug.Log(currentLobby.Value.Id);
+
         }
         else
         {
@@ -118,11 +122,15 @@ public class GameNetworkManager : MonoBehaviour
     }
 
     /* Attempts to join the lobby specified by the lobbyId. */
-    public async void JoinLobby(SteamId lobbyId)
+    public async void JoinLobby(SteamId lobbyId, string password)
     {
         try
         {
+            
             currentLobby = await SteamMatchmaking.JoinLobbyAsync(lobbyId);
+            if (password != currentLobby.Value.GetData("password")){
+                Debug.Log($"Password is wrong! You entered {password} and you needed {currentLobby.Value.GetData("password")}!");
+            }
             Debug.Log($"Joined the lobby of {currentLobby.Value.GetData("name")}");
             TitleScreenSelector.instance.finishedLoading = true;
             StartCoroutine(UpdateLobbyPlayerInfo());
@@ -273,6 +281,7 @@ public class GameNetworkManager : MonoBehaviour
     {
         TitleScreenSelector.instance.AddLobbyToAvailable(server.Name);
         Debug.Log($"Added {server.Name} to list of public servers");
+        
     }
     #endregion
 

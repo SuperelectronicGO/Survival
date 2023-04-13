@@ -14,6 +14,7 @@ public class TitleScreenSelector : MonoBehaviour
     [SerializeField] private GameObject[] Screens;
     [Header("Join Lobby Screen")]
     [SerializeField] private TMP_InputField lobbyIDEnter;
+    [SerializeField] private TMP_InputField lobbyPasswordEnter;
     [Header("Create Lobby Screen")]
     [SerializeField] private TMP_InputField lobbyNameEnter;
     [SerializeField] private RectTransform maxPlayerSelector;
@@ -22,7 +23,9 @@ public class TitleScreenSelector : MonoBehaviour
     [Header("Lobby Screen")]
     [SerializeField] private TextMeshProUGUI lobbyName;
     [SerializeField] private TextMeshProUGUI lobbyIdText;
+    [SerializeField] private TextMeshProUGUI lobbyChatText;
     [SerializeField] private Button loadMainSceneButton;
+    [SerializeField] private TMP_InputField lobbyChatEnter;
     private string lobbyId;
     [SerializeField] private GameObject[] playerList;
     [SerializeField] private Transform playerListAnchor;
@@ -41,6 +44,10 @@ public class TitleScreenSelector : MonoBehaviour
         copyLobbyIdButton.onClick.AddListener(() =>
         {
             CopyLobbyID();
+        });
+        lobbyChatEnter.onSubmit.AddListener((s) =>
+        {
+            SendMessageClientRPC();
         });
     }
     // Start is called before the first frame update
@@ -71,7 +78,7 @@ public class TitleScreenSelector : MonoBehaviour
         string IdStringEntered = lobbyIDEnter.text;
         Steamworks.SteamId Id =  new Steamworks.SteamId();
         Id.Value = ulong.Parse(IdStringEntered);
-        GameNetworkManager.Instance.JoinLobby(Id);
+        GameNetworkManager.Instance.JoinLobby(Id, lobbyPasswordEnter.text);
         StartCoroutine(QueueScreen(4));
 
         //Don't allow starting game if we are the host
@@ -187,6 +194,14 @@ public class TitleScreenSelector : MonoBehaviour
         NetworkManager.Singleton.SceneManager.LoadScene("Main", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 
+    //ClientRPC to send a message in chat
+    [ClientRpc]
+    public void SendMessageClientRPC()
+    {
+        string messageToSend = $"[{GameNetworkManager.Instance.PlayerName}] {lobbyChatEnter.text}\n";
+        lobbyChatText.text += messageToSend;
+        lobbyChatEnter.text = "";
+    }
 
     
    //ClientRPC that tells all clients to load the main scene
