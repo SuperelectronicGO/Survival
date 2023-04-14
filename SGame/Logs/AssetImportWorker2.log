@@ -106,3 +106,68 @@ Domain Reload Profiling:
 Platform modules already initialized, skipping
 Registering precompiled user dll's ...
 Registered in 0.014724 seconds.
+Begin MonoManager ReloadAssembly
+Native extension for UWP target not found
+Native extension for WindowsStandalone target not found
+Native extension for OSXStandalone target not found
+Refreshing native plugins compatible for Editor in 246.30 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Mono: successfully reloaded assembly
+- Completed reload, in  2.728 seconds
+Domain Reload Profiling:
+	ReloadAssembly (2729ms)
+		BeginReloadAssembly (183ms)
+			ExecutionOrderSort (0ms)
+			DisableScriptedObjects (8ms)
+			BackupInstance (0ms)
+			ReleaseScriptingObjects (0ms)
+			CreateAndSetChildDomain (35ms)
+		EndReloadAssembly (2365ms)
+			LoadAssemblies (179ms)
+			RebuildTransferFunctionScriptingTraits (0ms)
+			SetupTypeCache (588ms)
+			ReleaseScriptCaches (1ms)
+			RebuildScriptCaches (288ms)
+			SetupLoadedEditorAssemblies (1221ms)
+				LogAssemblyErrors (0ms)
+				InitializePlatformSupportModulesInManaged (23ms)
+				SetLoadedEditorAssemblies (0ms)
+				RefreshPlugins (246ms)
+				BeforeProcessingInitializeOnLoad (204ms)
+				ProcessInitializeOnLoadAttributes (593ms)
+				ProcessInitializeOnLoadMethodAttributes (143ms)
+				AfterProcessingInitializeOnLoad (11ms)
+				EditorAssembliesLoaded (0ms)
+			ExecutionOrderSort2 (0ms)
+			AwakeInstancesAfterBackupRestoration (8ms)
+Platform modules already initialized, skipping
+========================================================================
+Worker process is ready to serve import requests
+Shader 'MapMagic/TerrainPreviewHDRP': dependency 'BaseMapShader' shader 'Hidden/HDRP/TerrainLit_Basemap' not found
+Shader 'MapMagic/TerrainPreviewHDRP': dependency 'BaseMapGenShader' shader 'Hidden/HDRP/TerrainLit_BasemapGen' not found
+Shader 'MapMagic/TerrainPreviewHDRP': dependency 'BaseMapShader' shader 'Hidden/HDRP/TerrainLit_Basemap' not found
+Shader 'MapMagic/TerrainPreviewHDRP': dependency 'BaseMapGenShader' shader 'Hidden/HDRP/TerrainLit_BasemapGen' not found
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.10 seconds
+Refreshing native plugins compatible for Editor in 2.68 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Unloading 6515 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 102 unused Assets / (148.3 MB). Loaded Objects now: 6962.
+Memory consumption went from 0.62 GB to 485.4 MB.
+Total: 28.891600 ms (FindLiveObjects: 1.092200 ms CreateObjectMapping: 0.861600 ms MarkObjects: 7.454500 ms  DeleteObjects: 19.481700 ms)
+
+AssetImportParameters requested are different than current active one (requested -> active):
+  custom:video-decoder-ogg-theora: a1e56fd34408186e4bbccfd4996cb3dc -> 
+  custom:container-muxer-webm: aa71ff27fc2769a1b78a27578f13a17b -> 
+  custom:container-demuxer-webm: 4f35f7cbe854078d1ac9338744f61a02 -> 
+  custom:video-encoder-webm-vp8: eb34c28f22e8b96e1ab97ce403110664 -> 
+  custom:audio-encoder-webm-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
+  custom:framework-win-MediaFoundation: 216162199b28c13a410421893ffa2e32 -> 
+  custom:container-demuxer-ogg: 62fdf1f143b41e24485cea50d1cbac27 -> 
+  custom:video-decoder-webm-vp8: 9c59270c3fd7afecdb556c50c9e8de78 -> 
+  custom:audio-decoder-ogg-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
+========================================================================
+Received Import Request.
+  Time since last request: 25466.904989 seconds.
+  path: Assets/Prefabs/Item Models/Actual Prefabs/SlateSmallRock.prefab
+  artifactKey: Guid(aee911a2f75697f4dbbec36b5a0e111a) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefabs/Item Models/Actual Prefabs/SlateSmallRock.prefab using Guid(aee911a2f75697f4dbbec36b5a0e111a) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '119947a1c55655743e890c807ca6d2cb') in 0.502124 seconds 
