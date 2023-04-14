@@ -22,6 +22,8 @@ public class GameNetworkManager : MonoBehaviour
     private Steamworks.ServerList.Internet Request = new Steamworks.ServerList.Internet();
     //The ID of our app (not used)
     public uint gameAppId;
+    //Host ID
+    public ulong hostId;
     //The SteamClient.Name
     public string PlayerName;
     //The SteamClient.SteamId
@@ -43,10 +45,9 @@ public class GameNetworkManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+        //SteamClient.Init(gameAppId, asyncCallbacks: true);
         DontDestroyOnLoad(gameObject);
-        PlayerName = SteamClient.Name;
-        playerSteamId = SteamClient.SteamId;
-        playerSteamIdString = SteamClient.SteamId.ToString();
+        
     }
 
     /*  Start function gets the transport, subscribes to the necessary callbacks, and starts
@@ -62,11 +63,15 @@ public class GameNetworkManager : MonoBehaviour
         SteamMatchmaking.OnLobbyGameCreated += OnLobbyGameCreated;
         SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
         StartCoroutine(UpdateCurrentLobbys());
+        PlayerName = SteamClient.Name;
+        playerSteamId = SteamClient.SteamId;
+        playerSteamIdString = SteamClient.SteamId.ToString();
     }
 
     //OnDestroy unsubscribes from all callbacks and shuts down the Steam client
     private void OnDestroy()
     {
+        Debug.Log("Shutdown everything");
         SteamMatchmaking.OnLobbyCreated -= OnLobbyCreated;
         SteamMatchmaking.OnLobbyEntered -= OnLobbyEntered;
         SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
@@ -83,7 +88,10 @@ public class GameNetworkManager : MonoBehaviour
         SteamClient.Shutdown();
         
     }
-
+    private void Update()
+    {
+        SteamClient.RunCallbacks();
+    }
     /*  Starts the host and creates a steam lobby for that game. The lobby has its name set as well, 
      *  and starts the coroutine to update the list of players in the lobby. */
     public async void StartHost(int maxMembers, string lobbyName)
@@ -93,7 +101,7 @@ public class GameNetworkManager : MonoBehaviour
 
         if (NetworkManager.Singleton.StartHost())
         {
-          currentLobby = await SteamMatchmaking.CreateLobbyAsync();
+          currentLobby = await SteamMatchmaking.CreateLobbyAsync(maxMembers);
             currentLobby.Value.SetData("name", lobbyName);
             currentLobby.Value.SetData("password", "amongus");
             Debug.Log(currentLobby.Value.Id);
@@ -109,15 +117,27 @@ public class GameNetworkManager : MonoBehaviour
 
     /* Starts the client and subscribes to the OnClientConnected and Disconnected callbacks. 
      * Sets the target steam ID. */
-    public void StartClient(SteamId id)
+    public void StartClientNative(SteamId id)
     {
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectedCallback;
         transport.targetSteamId = id;
-
+        Debug.Log("Attempting to start client...");
+        try
+        {
+            Debug.Log("Test exeption");
+        }
+        catch(Exception e)
+        {
+            Debug.Log(e);
+        }
         if (NetworkManager.Singleton.StartClient())
         {
-            Debug.Log("Client has joined", this);
+            Debug.Log("yay");
+        }
+        else
+        {
+            Debug.Log("Client failed...");
         }
     }
 
@@ -151,7 +171,7 @@ public class GameNetworkManager : MonoBehaviour
         currentLobby?.Leave();
         if (NetworkManager.Singleton == null) return;
 
-        NetworkManager.Singleton.Shutdown();
+       // NetworkManager.Singleton.Shutdown();
     }
     #region Unity Callbacks
     private void OnServerStarted() => Debug.Log("Server started", this);
@@ -165,7 +185,15 @@ public class GameNetworkManager : MonoBehaviour
     #endregion
 
     #region Steam Callbacks
-    private void OnGameLobbyJoinRequested(Lobby lobby, SteamId id) => StartClient(lobby.Id);
+    //When we join lobby within steam client
+    private void OnGameLobbyJoinRequested(Lobby lobby, SteamId id) 
+    {
+        Debug.LogError("This should never happen");
+        StartClientNative(lobby.Id);
+        Debug.Log("Started with lobby ID " + lobby.Id);
+        StartCoroutine(sendClientTestMessage());
+    
+    }
     private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
     {
         Debug.Log("Someone joined");
@@ -182,14 +210,10 @@ public class GameNetworkManager : MonoBehaviour
     private void OnLobbyEntered(Lobby lobby)
     {
         TitleScreenSelector.instance.SetLobbyText(lobby.GetData("name"), lobby.Id.ToString());
-
-
-
-
-
         if (NetworkManager.Singleton.IsHost) return;
-        StartClient(lobby.Id);
-        
+        StartClientNative(currentLobby.Value.Owner.Id);
+        StartCoroutine(sendClientTestMessage());
+
     }
     private void OnLobbyCreated(Result result, Lobby lobby)
     {
@@ -199,6 +223,7 @@ public class GameNetworkManager : MonoBehaviour
         }
         lobby.SetPublic();
         lobby.SetJoinable(true);
+        lobby.SetGameServer(lobby.Owner.Id);
         Debug.Log("Lobby created");
         
     }
@@ -300,6 +325,29 @@ public class GameNetworkManager : MonoBehaviour
         }
     }
     #endregion
+
+    //Test coroutines xd
+    public IEnumerator sendClientTestMessage()
+    {
+        while (true)
+        {
+            SendMessageTestServerRPC();
+            yield return new WaitForSeconds(0.1f);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void SendMessageTestServerRPC()
+    {
+        if (NetworkManager.Singleton.IsHost)
+        {
+            Debug.Log("YOU ARE THE HOST");
+        }
+        if (NetworkManager.Singleton.IsClient)
+        {
+            Debug.Log("YOU ARE THE CLIENT");
+        }
+    }
 }
 [Serializable]
 public static class Conversions

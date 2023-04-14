@@ -48,7 +48,7 @@ public class TitleScreenSelector : MonoBehaviour
         });
         lobbyChatEnter.onSubmit.AddListener((s) =>
         {
-            SendMessageClientRPC();
+            SendMessageServerRPC();
         });
     }
     // Start is called before the first frame update
@@ -196,8 +196,8 @@ public class TitleScreenSelector : MonoBehaviour
     }
 
     //ClientRPC to send a message in chat
-    [ClientRpc]
-    public void SendMessageClientRPC()
+    [ServerRpc(RequireOwnership = false)]
+    public void SendMessageServerRPC()
     {
         string messageToSend = $"[{GameNetworkManager.Instance.PlayerName}] {lobbyChatEnter.text}\n";
         lobbyChatText.text += messageToSend;
