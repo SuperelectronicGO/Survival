@@ -46,10 +46,7 @@ public class TitleScreenSelector : MonoBehaviour
         {
             CopyLobbyID();
         });
-        lobbyChatEnter.onSubmit.AddListener((s) =>
-        {
-            SendMessageServerRPC();
-        });
+       
     }
     // Start is called before the first frame update
     //Sets screen to title screen
@@ -195,19 +192,12 @@ public class TitleScreenSelector : MonoBehaviour
         NetworkManager.Singleton.SceneManager.LoadScene("Main", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 
-    //ClientRPC to send a message in chat
-    [ServerRpc(RequireOwnership = false)]
-    public void SendMessageServerRPC()
-    {
-        string messageToSend = $"[{GameNetworkManager.Instance.PlayerName}] {lobbyChatEnter.text}\n";
-        lobbyChatText.text += messageToSend;
-        lobbyChatEnter.text = "";
-    }
+   
 
     
    //ClientRPC that tells all clients to load the main scene
    [ClientRpc]
-   public void LoadMainSceneClientRpc()
+   public void LoadMainSceneClientRPC()
     {
         LoadMainScene();
     }
