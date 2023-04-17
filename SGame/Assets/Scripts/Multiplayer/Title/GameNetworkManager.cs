@@ -348,6 +348,11 @@ public class GameNetworkManager : MonoBehaviour
             Debug.Log("YOU ARE THE CLIENT");
         }
     }
+
+    public Friend[] GetCurrentPlayers()
+    {
+        return currentLobby.Value.Members as Friend[];
+    }
 }
 [Serializable]
 public static class Conversions

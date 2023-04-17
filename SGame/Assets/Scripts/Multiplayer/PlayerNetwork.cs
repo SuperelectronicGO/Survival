@@ -30,10 +30,18 @@ public class PlayerNetwork : MonoBehaviour
     private void Awake()
     {
         instance = this;
-        GameObject plr = Instantiate(playerPrefab, transform.position, Quaternion.identity);
-        plr.GetComponent<NetworkObject>().SpawnAsPlayerObject(NetworkManager.Singleton.LocalClientId);
-        PlayerHandler.instance = plr.GetComponent<PlayerHandler>();
-        Debug.Log($"Spawned player object and playerhandler instance: {PlayerHandler.instance}");
+        /*Steamworks.Friend[] lobbyMembers = GameNetworkManager.Instance.GetCurrentPlayers();
+        for(int i=0; i<lobbyMembers.Length; i++)
+        {
+            if (lobbyMembers[i].Id == Steamworks.SteamClient.SteamId)
+            {
+
+            }
+        }*/
+
+
+
+        SpawnPlayerServerRpc(NetworkManager.Singleton.LocalClientId);
     }
     
 
@@ -70,6 +78,15 @@ public class PlayerNetwork : MonoBehaviour
         //Set player head of world text manager
         worldTextManager.SetPlayerHead(playerObj.transform.GetChild(0));
         
+    }
+
+    //ServerRpc to spawn the player
+    [ServerRpc]
+    public void SpawnPlayerServerRpc(ulong ownerId)
+    {
+        GameObject plr = Instantiate(playerPrefab, transform.position, Quaternion.identity);
+        plr.GetComponent<NetworkObject>().SpawnAsPlayerObject(ownerId);
+        PlayerHandler.instance = plr.GetComponent<PlayerHandler>();
     }
    
 }
