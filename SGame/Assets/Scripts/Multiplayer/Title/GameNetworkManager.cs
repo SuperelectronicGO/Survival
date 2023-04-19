@@ -104,6 +104,8 @@ public class GameNetworkManager : MonoBehaviour
           currentLobby = await SteamMatchmaking.CreateLobbyAsync(maxMembers);
             currentLobby.Value.SetData("name", lobbyName);
             currentLobby.Value.SetData("password", "amongus");
+            //Random Key name and Value to only return lobbys that exist on this games network
+            currentLobby.Value.SetData("906authEgameTypeforSearch", "98315652367");
             Debug.Log(currentLobby.Value.Id);
 
         }
@@ -122,23 +124,6 @@ public class GameNetworkManager : MonoBehaviour
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectedCallback;
         transport.targetSteamId = id;
-        Debug.Log("Attempting to start client...");
-        try
-        {
-            Debug.Log("Test exeption");
-        }
-        catch(Exception e)
-        {
-            Debug.Log(e);
-        }
-        if (NetworkManager.Singleton.StartClient())
-        {
-            Debug.Log("yay");
-        }
-        else
-        {
-            Debug.Log("Client failed...");
-        }
     }
 
     /* Attempts to join the lobby specified by the lobbyId. */
@@ -176,6 +161,8 @@ public class GameNetworkManager : MonoBehaviour
     #region Unity Callbacks
     private void OnServerStarted() => Debug.Log("Server started", this);
     private void OnClientConnectedCallback(ulong clientID) => Debug.Log($"Client connected (ID: {clientID})");
+
+    //When a client disconnects
     private void OnClientDisconnectedCallback(ulong clientID)
     {
         NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnectedCallback;
@@ -272,24 +259,27 @@ public class GameNetworkManager : MonoBehaviour
         return i;
         
     }
+
     #region Coroutine that gets the public lobbys
+    //Get the public lobbys every minute
     private IEnumerator UpdateCurrentLobbys()
     {
         Request.OnChanges += OnServerUpdated;
-        Request.AddFilter("", "sus");
         while (true)
         {
             
             TitleScreenSelector.instance.ClearLobbyList();
-            Request.RunQueryAsync(10);
-            yield return new WaitForSeconds(11);
+            //Add the random key as a filter to the lobbys
+            Request.AddFilter("906authEgameTypeforSearch", "98315652367");
+            Request.RunQueryAsync(15);
+
+            yield return new WaitForSeconds(60);
         }
     }
-    //Method for above coroutine
+    //Method for above coroutine that checks if the lobby found is responsive
     private void OnServerUpdated()
     {
        
-        return;
         //If no responsive servers, return
         if (Request.Responsive.Count == 0) { Debug.Log("No lobbys found"); return; }
 

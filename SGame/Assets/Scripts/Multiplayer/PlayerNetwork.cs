@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Unity.Netcode;
-public class PlayerNetwork : MonoBehaviour
+public class PlayerNetwork : NetworkBehaviour
 {
-
+    public bool testing;
     public static PlayerNetwork instance;
     [SerializeField] private GameObject playerPrefab;
     //Store a reference to every type the player will need upon spawning
@@ -27,7 +27,7 @@ public class PlayerNetwork : MonoBehaviour
     [Header("World Text")]
     [SerializeField] private WorldItemTextManager worldTextManager;
 
-    private void Awake()
+    private void Start()
     {
         instance = this;
         /*Steamworks.Friend[] lobbyMembers = GameNetworkManager.Instance.GetCurrentPlayers();
@@ -39,12 +39,28 @@ public class PlayerNetwork : MonoBehaviour
             }
         }*/
 
-
-
-        SpawnPlayerServerRpc(NetworkManager.Singleton.LocalClientId);
+        // SpawnPlayerServerRPC(NetworkManager.Singleton.LocalClientId);
+        
+            SpawnPlayerServerRPC(NetworkManager.LocalClientId);
+        Debug.Log("Spawned player");
+            NetworkManagerUI.instance.spawnCamera.gameObject.SetActive(false);
+             
     }
-    
+    public void SpawnPlayerTest()
+    {
+        Debug.Log(NetworkManager.LocalClientId);
+        StartCoroutine(funnyTest());
+        
+    }
+    public IEnumerator funnyTest()
+    {
+        
+        yield return new WaitForSeconds(2);
+        SpawnPlayerServerRPC(NetworkManager.LocalClientId);
 
+        NetworkManagerUI.instance.spawnCamera.gameObject.SetActive(false);
+        yield break;
+    }
     // Update is called once per frame
     void Update()
     {
@@ -52,6 +68,7 @@ public class PlayerNetwork : MonoBehaviour
     }
     public void assignPlayerStartValues(GameObject playerObj)
     {
+        PlayerHandler.instance = playerObj.GetComponent<PlayerHandler>();
         crosshairManager = playerObj.GetComponent<CrosshairManager>();
         instance.hotbarManager = hotbarManager;
         mainCanvasOne.gameObject.SetActive(true);
@@ -81,12 +98,11 @@ public class PlayerNetwork : MonoBehaviour
     }
 
     //ServerRpc to spawn the player
-    [ServerRpc]
-    public void SpawnPlayerServerRpc(ulong ownerId)
+    [ServerRpc(RequireOwnership = false)]
+    public void SpawnPlayerServerRPC(ulong ownerId)
     {
-        GameObject plr = Instantiate(playerPrefab, transform.position, Quaternion.identity);
-        plr.GetComponent<NetworkObject>().SpawnAsPlayerObject(ownerId);
-        PlayerHandler.instance = plr.GetComponent<PlayerHandler>();
+        GameObject play = Instantiate(playerPrefab, transform.position, Quaternion.identity);
+        play.GetComponent<NetworkObject>().SpawnAsPlayerObject(ownerId);
     }
    
 }

@@ -15,10 +15,7 @@ public class LoadingCircle : MonoBehaviour
     {
         StartCoroutine(changeFillAmount());
     }
-    private void OnDisable()
-    {
-        StopCoroutine(changeFillAmount());
-    }
+    
     // Update is called once per frame
     void Update()
     {
@@ -32,24 +29,30 @@ public class LoadingCircle : MonoBehaviour
 
     public IEnumerator changeFillAmount()
     {
+        yield return new WaitForEndOfFrame();
         float speedmodifier = 1.2f;
         circle.fillClockwise = true;
+
         while (circle.fillAmount < 1) {
             speedmodifier += 0.08f;
             circle.fillAmount += 0.16f*speedmodifier*Time.deltaTime;
             yield return new WaitForEndOfFrame();
         }
         yield return new WaitForSecondsRealtime(0.25f);
-        circle.fillClockwise = false;
-        speedmodifier = 1.2f;
-        while (circle.fillAmount > 0)
-        {
-            speedmodifier += 0.08f;
-            circle.fillAmount -= 0.16f * speedmodifier*Time.deltaTime;
-            yield return new WaitForEndOfFrame();
-        }
+            circle.fillClockwise = false;
+            speedmodifier = 1.2f;
+            while (circle.fillAmount > 0)
+            {
+                speedmodifier += 0.08f;
+                circle.fillAmount -= 0.16f * speedmodifier * Time.deltaTime;
+                yield return new WaitForEndOfFrame();
+            }
+        
         yield return new WaitForSecondsRealtime(0.25f);
-        StartCoroutine(changeFillAmount());
+        if (gameObject.activeInHierarchy)
+        {
+            StartCoroutine(changeFillAmount());
+        }
         yield break;
     }
 }

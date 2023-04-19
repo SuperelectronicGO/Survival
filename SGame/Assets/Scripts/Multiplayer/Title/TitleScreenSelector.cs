@@ -64,6 +64,11 @@ public class TitleScreenSelector : MonoBehaviour
     {
         FilterScreens(3);
     }
+    //Set screen to browse lobbys
+    public void SetScreenToBrowseLobbys()
+    {
+        FilterScreens(6);
+    }
     //Calls the StartHost function on Steams side and sets the screen to the lobby
     public void HostLobby()
     {
@@ -87,7 +92,7 @@ public class TitleScreenSelector : MonoBehaviour
     }
     public void AddLobbyToAvailable(string lobbyName)
     {
-        GameObject g = Instantiate(publicLobbyTemplate, new Vector3(publicLobbyAnchor.transform.position.x, (availableLobbys.Count * 50) + 50, 0), Quaternion.identity);
+        GameObject g = Instantiate(publicLobbyTemplate, new Vector3(publicLobbyAnchor.transform.position.x, (availableLobbys.Count * 50) + 50, 0), Quaternion.identity, publicLobbyAnchor.transform);
         g.GetComponent<PublicLobby>().SetLobbyText(lobbyName);
         availableLobbys.Add(g);
     }
@@ -191,17 +196,6 @@ public class TitleScreenSelector : MonoBehaviour
         Debug.Log("Loading Scene [Main]...");
         NetworkManager.Singleton.SceneManager.LoadScene("Main", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
-
-   
-
-    
-   //ClientRPC that tells all clients to load the main scene
-   [ClientRpc]
-   public void LoadMainSceneClientRPC()
-    {
-        LoadMainScene();
-    }
-
 }
 
 
