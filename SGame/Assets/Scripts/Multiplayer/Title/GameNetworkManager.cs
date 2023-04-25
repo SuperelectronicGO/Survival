@@ -11,6 +11,7 @@ using Steamworks.Ugc;
 using System.Threading.Tasks;
 public class GameNetworkManager : MonoBehaviour
 {
+    #region Steam Server Values
     //Instance of this script that can be used from anywhere
     public static GameNetworkManager Instance { get; private set; } = null;
     //The facepunch transport we are using
@@ -30,6 +31,10 @@ public class GameNetworkManager : MonoBehaviour
     public SteamId playerSteamId;
     //the SteamClient.SteamId as a string
     public string playerSteamIdString;
+    #endregion
+
+    //Boolean to keep track of if we want to generate the world upon entering the game
+    public bool generateWorld = true;
 
     /*  Awake function sets the instance of this script, as well as marking this object
      *  as DontDestroyOnLoad, and sets the player playerName, playerSteamId, and its string 
@@ -105,7 +110,6 @@ public class GameNetworkManager : MonoBehaviour
             currentLobby.Value.SetData("name", lobbyName);
             currentLobby.Value.SetData("password", "amongus");
             //Random Key name and Value to only return lobbys that exist on this games network
-            currentLobby.Value.SetData("906authEgameTypeforSearch", "98315652367");
             Debug.Log(currentLobby.Value.Id);
 
         }
@@ -124,6 +128,10 @@ public class GameNetworkManager : MonoBehaviour
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnectedCallback;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnectedCallback;
         transport.targetSteamId = id;
+        if (NetworkManager.Singleton.StartClient())
+        {
+            Debug.Log("Started Client");
+        }
     }
 
     /* Attempts to join the lobby specified by the lobbyId. */
@@ -178,7 +186,6 @@ public class GameNetworkManager : MonoBehaviour
         Debug.LogError("This should never happen");
         StartClientNative(lobby.Id);
         Debug.Log("Started with lobby ID " + lobby.Id);
-        StartCoroutine(sendClientTestMessage());
     
     }
     private void OnLobbyMemberJoined(Lobby lobby, Friend friend)
@@ -199,7 +206,6 @@ public class GameNetworkManager : MonoBehaviour
         TitleScreenSelector.instance.SetLobbyText(lobby.GetData("name"), lobby.Id.ToString());
         if (NetworkManager.Singleton.IsHost) return;
         StartClientNative(currentLobby.Value.Owner.Id);
-        StartCoroutine(sendClientTestMessage());
 
     }
     private void OnLobbyCreated(Result result, Lobby lobby)
@@ -213,13 +219,6 @@ public class GameNetworkManager : MonoBehaviour
         lobby.SetGameServer(lobby.Owner.Id);
         Debug.Log("Lobby created");
         
-    }
-    #endregion
-
-    #region Scene Load Callbacks
-    public void SpawnPlayerOnSceneLoad()
-    {
-
     }
     #endregion
 
@@ -251,31 +250,28 @@ public class GameNetworkManager : MonoBehaviour
             yield return new WaitForSecondsRealtime(2.5f);
         }
     }
-    private async Task<Image?> GetFriendImage(Friend friend)
-    {
-        var avatar = GetAvatarFromFriend(friend);
-        await Task.WhenAll(avatar);
-        Image? i = avatar.Result;
-        return i;
-        
-    }
 
     #region Coroutine that gets the public lobbys
     //Get the public lobbys every minute
     private IEnumerator UpdateCurrentLobbys()
     {
+        yield break;
         Request.OnChanges += OnServerUpdated;
         while (true)
         {
-            
-            TitleScreenSelector.instance.ClearLobbyList();
-            //Add the random key as a filter to the lobbys
-            Request.AddFilter("906authEgameTypeforSearch", "98315652367");
-            Request.RunQueryAsync(15);
-
+            UpdateServerList();
             yield return new WaitForSeconds(60);
         }
+      
     }
+    //Public void to update the server list
+    public void UpdateServerList()
+    {
+        Request.Cancel();
+        TitleScreenSelector.instance.ClearLobbyList();
+        Request.RunQueryAsync(15);
+    }
+   
     //Method for above coroutine that checks if the lobby found is responsive
     private void OnServerUpdated()
     {
@@ -291,81 +287,22 @@ public class GameNetworkManager : MonoBehaviour
         //Clear list so we don't reproccess (I did not copy this line from the facepunch wiki.)
         Request.Responsive.Clear();
     }
-    //Method for above coroutine
+    //Method for above coroutine that acts as a server responds
     void ServerResponded(ServerInfo server)
     {
-        TitleScreenSelector.instance.AddLobbyToAvailable(server.Name);
-        Debug.Log($"Added {server.Name} to list of public servers");
+        if (server.AppId == 2397310)
+        {
+            TitleScreenSelector.instance.AddLobbyToAvailable(server.Name);
+            Debug.Log($"Added {server.Name} to list of public servers");
+        }
         
     }
     #endregion
 
-    private static async Task<Image?> GetAvatarFromFriend(Friend friend)
-    {
-        try
-        {
-            // Get Avatar using await
-            return await friend.GetLargeAvatarAsync();
-        }
-        catch (Exception e)
-        {
-            // If something goes wrong, log it
-            Debug.Log(e);
-            return null;
-        }
-    }
     #endregion
-
-    //Test coroutines xd
-    public IEnumerator sendClientTestMessage()
-    {
-        while (true)
-        {
-            SendMessageTestServerRPC();
-            yield return new WaitForSeconds(0.1f);
-        }
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    public void SendMessageTestServerRPC()
-    {
-        if (NetworkManager.Singleton.IsHost)
-        {
-            Debug.Log("YOU ARE THE HOST");
-        }
-        if (NetworkManager.Singleton.IsClient)
-        {
-            Debug.Log("YOU ARE THE CLIENT");
-        }
-    }
-
+    //Array that returns the players in the current lobby
     public Friend[] GetCurrentPlayers()
     {
         return currentLobby.Value.Members as Friend[];
-    }
-}
-[Serializable]
-public static class Conversions
-{
-    public static Texture2D ConvertImage(this Image image)
-    {
-        // Create a new Texture2D
-        var avatar = new Texture2D((int)image.Width, (int)image.Height, TextureFormat.ARGB32, false);
-
-        // Set filter type, or else its really blury
-        avatar.filterMode = FilterMode.Trilinear;
-
-        // Flip image
-        for (int x = 0; x < image.Width; x++)
-        {
-            for (int y = 0; y < image.Height; y++)
-            {
-                var p = image.GetPixel(x, y);
-                avatar.SetPixel(x, (int)image.Height - y, new UnityEngine.Color(p.r / 255.0f, p.g / 255.0f, p.b / 255.0f, p.a / 255.0f));
-            }
-        }
-
-        avatar.Apply();
-        return avatar;
     }
 }

@@ -41,10 +41,14 @@ public class PlayerNetwork : NetworkBehaviour
 
         // SpawnPlayerServerRPC(NetworkManager.Singleton.LocalClientId);
         
-            SpawnPlayerServerRPC(NetworkManager.LocalClientId);
-        Debug.Log("Spawned player");
-            NetworkManagerUI.instance.spawnCamera.gameObject.SetActive(false);
+            
              
+    }
+    public void SpawnPlayer()
+    {
+        SpawnPlayerServerRPC(NetworkManager.LocalClientId);
+        Debug.Log("Spawned player");
+        NetworkManagerUI.instance.spawnCamera.gameObject.SetActive(false);
     }
     public void SpawnPlayerTest()
     {

@@ -10,7 +10,7 @@ public static class TerrainNoise
 {
     //Used when generating many maps in a row
 
-     [BurstCompile]
+    [BurstCompile]
     public struct MapGenerationJob : IJobParallelFor
     {
         public int2 Dimensions;
@@ -61,7 +61,7 @@ public static class TerrainNoise
     }
 
   
-     public static float[,] GenerateNoiseMap(int2 dimensions, uint seed, float scale, int octaves, float persistance, float lacunarity, int2 offset)
+    public static float[,] GenerateNoiseMap(int2 dimensions, uint seed, float scale, int octaves, float persistance, float lacunarity, int2 offset)
     {
       //  Debug.Log(oOffsets[0] + ", " + oOffsets[1] + ", " + oOffsets[2] + ", " + oOffsets[3]);
         //Debug.Log("Dimensions: " + dimensions + ", octave offsets: " + oOffsets + ", scale: " + scale + ", persistance: " + persistance + ", lacunarity: " + lacunarity + ", offset" + offset);
@@ -183,4 +183,5 @@ public static class TerrainNoise
 
         return result;
     }
+
 }

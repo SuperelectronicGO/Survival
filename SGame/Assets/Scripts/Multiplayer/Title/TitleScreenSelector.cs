@@ -27,11 +27,15 @@ public class TitleScreenSelector : MonoBehaviour
     [SerializeField] private TextMeshProUGUI lobbyChatText;
     [SerializeField] private Button loadMainSceneButton;
     [SerializeField] private TMP_InputField lobbyChatEnter;
+    [SerializeField] private Toggle generateWorldToggle;
     private string lobbyId;
     [SerializeField] private GameObject[] playerList;
     [SerializeField] private Transform playerListAnchor;
     [SerializeField] private GameObject playerListDisplayTemplate;
     [SerializeField] private Button copyLobbyIdButton;
+    [Header("World Generation Settings Screen")]
+    [SerializeField] private GameObject worldSettingsScreen;
+    [SerializeField] private TMP_InputField worldSeedInput;
     [Header("Browse Lobby Screen")]
     [SerializeField] private List<GameObject> availableLobbys = new List<GameObject>();
     [SerializeField] private GameObject publicLobbyTemplate;
@@ -46,7 +50,10 @@ public class TitleScreenSelector : MonoBehaviour
         {
             CopyLobbyID();
         });
-       
+        worldSeedInput.onValueChanged.AddListener((s) =>
+        {
+            SetSeedValue(s);
+        });
     }
     // Start is called before the first frame update
     //Sets screen to title screen
@@ -195,6 +202,27 @@ public class TitleScreenSelector : MonoBehaviour
         GameNetworkManager.Instance.StopPlayerListRefresh();
         Debug.Log("Loading Scene [Main]...");
         NetworkManager.Singleton.SceneManager.LoadScene("Main", UnityEngine.SceneManagement.LoadSceneMode.Single);
+    }
+    //Public void that updates the server list
+    public void CallUpdateServerList()
+    {
+        GameNetworkManager.Instance.UpdateServerList();
+    }
+    //Public void that updates if we wish to generate the world
+    public void SetGenerateWorldValue()
+    {
+        GameNetworkManager.Instance.generateWorld = generateWorldToggle.isOn;
+    }
+    //Sets the seeds of the WorldGenSettings whenever we modify the seed value
+    private void SetSeedValue(string s)
+    {
+        WorldGenSettings.instance.seed = (uint)int.Parse(s);
+        WorldGenSettings.instance.CalculateMapSeeds();
+    }
+    //Void that sets the World Generation Setting screen active or inactive
+    public void SetWorldSettingsScreen(bool active)
+    {
+        worldSettingsScreen.SetActive(active);
     }
 }
 

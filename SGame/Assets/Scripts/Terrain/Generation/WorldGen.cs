@@ -7,11 +7,11 @@ using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
 using GPUInstancer;
-
+using Unity.Netcode;
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-    
+
     List<Material> blendMats = new List<Material>();
 
     [Header("Speed")]
@@ -43,6 +43,7 @@ public class WorldGen : MonoBehaviour
     #endregion
 
     [Header("Data")]
+    private bool generateOnLoad = false;
     //Player reference
     [SerializeField] private Transform player;
     //Terrain material
@@ -109,11 +110,7 @@ public class WorldGen : MonoBehaviour
             tDatas.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>().terrainData);
             //set material
             terrains[i].materialTemplate = terrainMaterial;
-
         }
-
-
-
 
         TerrainLayer[] layers = new TerrainLayer[biomeStorage.biomes.Length];
         int maxSubLength = -10;
@@ -128,9 +125,9 @@ public class WorldGen : MonoBehaviour
                 }
             }
         }
-        
-        maxObjectWeights = new int[maxSubLength+1, biomeStorage.biomes.Length];
-        
+
+        maxObjectWeights = new int[maxSubLength + 1, biomeStorage.biomes.Length];
+
         for (int j = 0; j < tDatas.Count; j++)
         {
             tDatas[j].terrainLayers = layers;
@@ -165,13 +162,13 @@ public class WorldGen : MonoBehaviour
             //Y
             humidOffsets[i].y = randomHumidSeed.NextInt(-100000, 100000);
         }
-
-
-
-
         mapDemensions = new int2(1024, 1024);
 
-
+        //Generate world on load if selected in menu
+        if (GameNetworkManager.Instance.generateWorld)
+        {
+            StartCoroutine(initialTerrainGeneration());
+        }
     }
 
     // Update is called once per frame
@@ -179,8 +176,8 @@ public class WorldGen : MonoBehaviour
     {
 
 
-       
-        if (Input.GetKeyDown(KeyCode.U))
+
+        if (Input.GetKeyDown(KeyCode.U)&&!GameNetworkManager.Instance.generateWorld)
         {
             // textureWorld();
             //StartCoroutine(textureTerrains());
@@ -276,10 +273,10 @@ public class WorldGen : MonoBehaviour
                 }
             }
         }
-        
-        
+
+
     }
-   
+
     //Method that generates the initial tiles
     bool moveNext = false;
     private IEnumerator initialTerrainGeneration()
@@ -297,7 +294,8 @@ public class WorldGen : MonoBehaviour
             Debug.Log("Finished tile " + (num - 1));
         }
 
-
+        genScreen.canvasObject.SetActive(false);
+        PlayerNetwork.instance.SpawnPlayer();
         yield break;
     }
 
@@ -334,65 +332,65 @@ public class WorldGen : MonoBehaviour
             //Determine BIOME value
             if (tempPositions[i] > (minTemp - difAmount) && tempPositions[i] < (maxTemp + difAmount) && humPositions[i] > (minHum - difAmount) && humPositions[i] < (maxHum + difAmount))
             {
-               
+
                 //Default to both at 1
                 float tempAmount = 1;
-                    float humAmount = 1;
-                    //Check if on the verge of min temp
-                    if (tempPositions[i] < (minTemp + difAmount))
-                    {
-                        tempAmount = 1 - (((minTemp + difAmount) - tempPositions[i]) * changeMult);
-                    }
-                    //Check if on the verge of max temp
-                    else if (tempPositions[i] > (maxTemp - difAmount))
-                    {
-                        tempAmount = (maxTemp + difAmount - tempPositions[i]) * changeMult;
-                    }
+                float humAmount = 1;
+                //Check if on the verge of min temp
+                if (tempPositions[i] < (minTemp + difAmount))
+                {
+                    tempAmount = 1 - (((minTemp + difAmount) - tempPositions[i]) * changeMult);
+                }
+                //Check if on the verge of max temp
+                else if (tempPositions[i] > (maxTemp - difAmount))
+                {
+                    tempAmount = (maxTemp + difAmount - tempPositions[i]) * changeMult;
+                }
 
-                    //Check if on the verge of min humidity
-                    if (humPositions[i] < (minHum + difAmount))
-                    {
-                        humAmount = 1 - (((minHum + difAmount) - humPositions[i]) * changeMult);
-                    }
-                    //Check if on the verge of max humidity
-                    else if (humPositions[i] > (maxHum - difAmount))
-                    {
-                        humAmount = (maxHum + difAmount - humPositions[i]) * changeMult;
-                    }
+                //Check if on the verge of min humidity
+                if (humPositions[i] < (minHum + difAmount))
+                {
+                    humAmount = 1 - (((minHum + difAmount) - humPositions[i]) * changeMult);
+                }
+                //Check if on the verge of max humidity
+                else if (humPositions[i] > (maxHum - difAmount))
+                {
+                    humAmount = (maxHum + difAmount - humPositions[i]) * changeMult;
+                }
 
-                    //If in range and not on the verge, set that we do have a biome here
-                    if (tempPositions[i] > minTemp + difAmount && tempPositions[i] < maxTemp - difAmount && humPositions[i] > minHum + difAmount && humPositions[i] < maxHum - difAmount)
-                    {
-                        //Update positions map
-                        weight = 1;
+                //If in range and not on the verge, set that we do have a biome here
+                if (tempPositions[i] > minTemp + difAmount && tempPositions[i] < maxTemp - difAmount && humPositions[i] > minHum + difAmount && humPositions[i] < maxHum - difAmount)
+                {
+                    //Update positions map
+                    weight = 1;
 
+
+                }
+                else
+                {
+                    //If both are not equal (meaning one was on the verge), blend
+                    if (tempAmount != 1 && humAmount != 1)
+                    {
+                        weight = tempAmount * humAmount;
 
                     }
                     else
                     {
-                        //If both are not equal (meaning one was on the verge), blend
-                        if (tempAmount != 1 && humAmount != 1)
+                        if (tempAmount > humAmount)
                         {
-                            weight = tempAmount * humAmount;
+                            weight = humAmount;
 
                         }
                         else
                         {
-                            if (tempAmount > humAmount)
-                            {
-                                weight = humAmount;
 
-                            }
-                            else
-                            {
+                            weight = tempAmount;
 
-                                weight = tempAmount;
-
-                            }
                         }
-
-
                     }
+
+
+                }
 
 
 
@@ -403,31 +401,32 @@ public class WorldGen : MonoBehaviour
 
                 //  positions[i] *= 1 - (subBiomeNative[i].y / 2);
 
-                    //First don't blend if only one subbiome
-                if ((minSub == 0 && maxSub == 1)||(minSub <= subBiomeNative[i].x && maxSub >= subBiomeNative[i].x&& minSub <= subBiomeNative[i].z && maxSub >= subBiomeNative[i].z&&subBiomeNative[i].y != 1))
+                //First don't blend if only one subbiome
+                if ((minSub == 0 && maxSub == 1) || (minSub <= subBiomeNative[i].x && maxSub >= subBiomeNative[i].x && minSub <= subBiomeNative[i].z && maxSub >= subBiomeNative[i].z && subBiomeNative[i].y != 1))
                 {
 
-                }else if (minSub <= subBiomeNative[i].x && maxSub >= subBiomeNative[i].x)
+                }
+                else if (minSub <= subBiomeNative[i].x && maxSub >= subBiomeNative[i].x)
+                {
+                    //Keep normal, unless there is blending here
+                    if (subBiomeNative[i].y != 1)
                     {
-                        //Keep normal, unless there is blending here
-                        if (subBiomeNative[i].y != 1)
-                        {
-                            weight *= 1 - (subBiomeNative[i].y / 2);
+                        weight *= 1 - (subBiomeNative[i].y / 2);
 
-                        }
                     }
-                    else if (minSub <= subBiomeNative[i].z && maxSub >= subBiomeNative[i].z && subBiomeNative[i].y != 1)
-                    {
+                }
+                else if (minSub <= subBiomeNative[i].z && maxSub >= subBiomeNative[i].z && subBiomeNative[i].y != 1)
+                {
                     weight *= subBiomeNative[i].y / 2;
 
-                    }
-                    else
-                    {
-                        //Blend
-                        // 
-                        weight = 0;
-                    }
-                
+                }
+                else
+                {
+                    //Blend
+                    // 
+                    weight = 0;
+                }
+
 
                 positions[i] = weight;
             }
@@ -491,13 +490,13 @@ public class WorldGen : MonoBehaviour
             }
             else
             {
-               //Not in the correct subbiome
+                //Not in the correct subbiome
                 weight = 0;
             }
             if (weight > 1)
             {
                 Debug.LogError("FUCK!");
-                
+
             }
             //Run check if we are in the correct subbiome
             if (weight != 0)
@@ -606,6 +605,8 @@ public class WorldGen : MonoBehaviour
         int biomeDensityAmnt = 0;
         //Max weight for biome
         int maxWeightAmnt = 0;
+        //Value to store the normals of the terrain
+        Vector3 spotNormal = new Vector3();
         // * * * * * Before Generation Setup * * * * * \\
 
         //Log this tile in the terrain tile biome list
@@ -706,8 +707,8 @@ public class WorldGen : MonoBehaviour
             }
 
         }
-        
-        
+
+
         //PixelOffset is the index offset of the strip when compared to the main map
         int pixelOffset = 0;
         //Create a new float[,,] for each strip we will use
@@ -757,7 +758,7 @@ public class WorldGen : MonoBehaviour
 
                 for (int x = 0; x < 1025; x++)
                 {
-                    
+
                     tempBIndex = 0;
                     for (int m = 0; m < biomeStorage.biomes.Length; m++)
                     {
@@ -769,10 +770,10 @@ public class WorldGen : MonoBehaviour
                                 splatMap[m][y + pixelOffset, x, j] = biomeNativeArrays[j, m][((y + pixelOffset) * 1025) + x];
                                 tempBIndex += 1;
                             }
-                            
-                            
+
+
                         }
-                        
+
                     }
 
                 }
@@ -1049,60 +1050,63 @@ public class WorldGen : MonoBehaviour
         }
 
         yield return new WaitForEndOfFrame();
-        
+
         #endregion
 
         #region Objects
-        tileOffset.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale) / 4;
-        tileOffset.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale) / 4;
-        //Store the location of this tile
-        Vector3 updatedTilePosition = terrain.transform.position;
-        //Generate a noisemap for the density of this tile
-        tileObjectDensityMap = TerrainNoise.GenerateNoiseMap(densityMapDimensions, (uint)biomeDensityMapSettings.seed, biomeDensityMapSettings.scale, biomeDensityMapSettings.octaves, biomeDensityMapSettings.persistance, biomeDensityMapSettings.lacunarity, tileOffset);
-
-      
-        //Iterate through the tile, but increment by the set density above
-        for (int y = 0; y < tDatas[tileNumber].heightmapResolution; y += density)
+        /* Only run this if we are the host/server */
+        if (NetworkManager.Singleton.IsHost)
         {
-            for (int x = 0; x < tDatas[tileNumber].heightmapResolution; x += density)
+            tileOffset.x = Mathf.RoundToInt(terrainParent.transform.position.x * offsetScale) / 4;
+            tileOffset.y = Mathf.RoundToInt(terrainParent.transform.position.z * offsetScale) / 4;
+            //Store the location of this tile
+            Vector3 updatedTilePosition = terrain.transform.position;
+            //Generate a noisemap for the density of this tile
+            tileObjectDensityMap = TerrainNoise.GenerateNoiseMap(densityMapDimensions, (uint)biomeDensityMapSettings.seed, biomeDensityMapSettings.scale, biomeDensityMapSettings.octaves, biomeDensityMapSettings.persistance, biomeDensityMapSettings.lacunarity, tileOffset);
+
+
+            //Iterate through the tile, but increment by the set density above
+            for (int y = 0; y < tDatas[tileNumber].heightmapResolution; y += density)
             {
-                //Default doBlend to false
-                doBlend = false;
-                //Set biome density to default (0)
-                biomeDensityAmnt = 0;
-                //Default the blendAmount to 0
-                blendAmount = 0;
-                //Set the maxObjectWeight to 0
-                maxWeightAmnt = 0;
-                //Loop through biomes to check which ones exist
-              
-                for (int i = 0; i < biomeStorage.biomes.Length; i++)
+                for (int x = 0; x < tDatas[tileNumber].heightmapResolution; x += density)
                 {
-                    for (int subBiomeNumber = 0; subBiomeNumber < biomeStorage.biomes[i].subBiomes.Length; subBiomeNumber++)
+                    //Default doBlend to false
+                    doBlend = false;
+                    //Set biome density to default (0)
+                    biomeDensityAmnt = 0;
+                    //Default the blendAmount to 0
+                    blendAmount = 0;
+                    //Set the maxObjectWeight to 0
+                    maxWeightAmnt = 0;
+                    //Loop through biomes to check which ones exist
+
+                    for (int i = 0; i < biomeStorage.biomes.Length; i++)
                     {
-                        
+                        for (int subBiomeNumber = 0; subBiomeNumber < biomeStorage.biomes[i].subBiomes.Length; subBiomeNumber++)
+                        {
+
 
                             //If the biome doesn't exist on this tile, or the biome has no objects, skip
-                            if (biomesPerTerrainTile[tileNumber][subBiomeNumber, i] == 0||biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects.Length==0)
+                            if (biomesPerTerrainTile[tileNumber][subBiomeNumber, i] == 0 || biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects.Length == 0)
                             {
                                 //Do nothing
-                                
+
                             }
-                                else
+                            else
                             {
-                                
+
                                 //Check biome splat map at this position
                                 if (splatMap[i][y, x, subBiomeNumber] != 0)
                                 {
                                     if (splatMap[i][y, x, subBiomeNumber] == 1)
                                     {
-                                        
+
                                         tileObjects = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects;
                                         biomeIndex = i;
                                         biomeDensityAmnt = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeDensity;
                                         //Set max weight amount
                                         maxWeightAmnt = maxObjectWeights[subBiomeNumber, biomeIndex];
-                                }
+                                    }
                                     else
                                     {
                                         //The biome is blended, add its weight to the blend array and blendAmount, and mark that we must blend
@@ -1110,148 +1114,157 @@ public class WorldGen : MonoBehaviour
                                         blendAmount += splatMap[i][y, x, subBiomeNumber];
 
                                     }
-                                   
+
                                 }
                             }
-                        
-                       
+
+
+                        }
                     }
-                }
-                
-                //If blending, decide a biome that will take prevelance at this spot (weighted by biome splatmap #)
-                if (doBlend)
-                {
-                    float thisBlend = 0;
-                    float blendNumber = Random.Range(0, blendAmount);
-                    for (int i = 0; i < biomeStorage.biomes.Length; i++)
+
+                    //If blending, decide a biome that will take prevelance at this spot (weighted by biome splatmap #)
+                    if (doBlend)
                     {
-                        for (int subBiomeNumber = 0; subBiomeNumber < biomeStorage.biomes[i].subBiomes.Length; subBiomeNumber++)
+                        float thisBlend = 0;
+                        float blendNumber = Random.Range(0, blendAmount);
+                        for (int i = 0; i < biomeStorage.biomes.Length; i++)
                         {
-                            
-                           if (splatMap[i][y, x, subBiomeNumber] + thisBlend > blendNumber)
+                            for (int subBiomeNumber = 0; subBiomeNumber < biomeStorage.biomes[i].subBiomes.Length; subBiomeNumber++)
                             {
-                                tileObjects = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects;
-                                biomeIndex = i;
-                                biomeDensityAmnt = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeDensity;
-                                maxWeightAmnt = maxObjectWeights[subBiomeNumber, biomeIndex];
-                            }
+
+                                if (splatMap[i][y, x, subBiomeNumber] + thisBlend > blendNumber)
+                                {
+                                    tileObjects = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeObjects;
+                                    biomeIndex = i;
+                                    biomeDensityAmnt = biomeStorage.biomes[i].subBiomes[subBiomeNumber].biomeDensity;
+                                    maxWeightAmnt = maxObjectWeights[subBiomeNumber, biomeIndex];
+                                }
                                 else
-                            {
-                                thisBlend += splatMap[i][y, x, subBiomeNumber];
-                                break;
+                                {
+                                    thisBlend += splatMap[i][y, x, subBiomeNumber];
+                                    break;
+                                }
                             }
-                            }
-                        
+
+                        }
                     }
-                }
-                //As long as there is actually a biome, generate
-                if (biomeIndex != -1)
-                {
-                   
-                                //Define random chance for this object to appear
-                                int randomChance = Random.Range(0, 1000);
-                                /* The odds of this object appearing depend on the chance for its category defined above.
-                                 * This number is multiplied by the value of the biome density map + 0.25 (normalized between 0 and 1, and +.25 is to still spawn at low density)
-                                   to decide if an object is actually spawned at this spot. The biome density X and Y are divided by 4 as it samples a smaller map. */
-                                if (randomChance < biomeDensityAmnt * Mathf.Lerp(0, 1.25f, (tileObjectDensityMap[x / 4, y / 4] + 0.25f)))
-                                {
-                                    //Pick a random object from the list depending on weights
-                                    int randomWeight = Random.Range(0, maxWeightAmnt);
-                       
-                                    //Store the object we want
-                                    ObjectScriptable selectedOb = null;
-                                    /* Object is found by: First picking a random number between 0, and the weight of all objects in this biome added up.
-                                     * Then, for each object it tests if that random number is smaller than the tested objects weight PLUS all the objects that failed
-                                     * selection before it          */
-                                    //Value of all the failed objects before the one being tested, added up
-                                    int priorWeights = 0;
-                                    //Iterate through list until we find that point.
-                                    for (int i = 0; i < tileObjects.Length; i++)
-                                    {
-                                        //Check if the random value is smaller than this weight + the failed weights
-                                        if (priorWeights + tileObjects[i].weight > randomWeight)
-                                        {
-                                            //If true, this object is the index we want
-                                            selectedOb = tileObjects[i];
-                                            break;
-                                        }
-                                        else
-                                        {
-                                            //If false, the tested object failed to reach the random number, add the failed objects weight to priorWeights
-                                            priorWeights += tileObjects[i].weight;
+                    //As long as there is actually a biome, generate
+                    if (biomeIndex != -1)
+                    {
 
-                                        }
-                                    }
+                        //Define random chance for this object to appear
+                        int randomChance = Random.Range(0, 1000);
+                        /* The odds of this object appearing depend on the chance for its category defined above.
+                         * This number is multiplied by the value of the biome density map + 0.25 (normalized between 0 and 1, and +.25 is to still spawn at low density)
+                           to decide if an object is actually spawned at this spot. The biome density X and Y are divided by 4 as it samples a smaller map. */
+                        if (randomChance < biomeDensityAmnt * Mathf.Lerp(0, 1.25f, (tileObjectDensityMap[x / 4, y / 4] + 0.25f)))
+                        {
+                            //Pick a random object from the list depending on weights
+                            int randomWeight = Random.Range(0, maxWeightAmnt);
 
-                                //Log an error if somehow an object failed to be selected
-                                if (selectedOb == null)
+                            //Store the object we want
+                            ObjectScriptable selectedOb = null;
+                            /* Object is found by: First picking a random number between 0, and the weight of all objects in this biome added up.
+                             * Then, for each object it tests if that random number is smaller than the tested objects weight PLUS all the objects that failed
+                             * selection before it          */
+                            //Value of all the failed objects before the one being tested, added up
+                            int priorWeights = 0;
+                            //Iterate through list until we find that point.
+                            for (int i = 0; i < tileObjects.Length; i++)
+                            {
+                                //Check if the random value is smaller than this weight + the failed weights
+                                if (priorWeights + tileObjects[i].weight > randomWeight)
                                 {
+                                    //If true, this object is the index we want
+                                    selectedOb = tileObjects[i];
+                                    break;
                                 }
                                 else
                                 {
+                                    //If false, the tested object failed to reach the random number, add the failed objects weight to priorWeights
+                                    priorWeights += tileObjects[i].weight;
 
-                                    //Store a reference to the tiles normals for proper placement
-                                    float newX = x;
-                                    float newY = y;
-                                    Vector3 spotNormal = tDatas[tileNumber].GetInterpolatedNormal(newX / 1025, newY / 1025);
-                                    //Set the position of where the object should spawn
-                                    Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[tileNumber].GetHeight(x, y) + selectedOb.yOffset, updatedTilePosition.z + (y / 1.025f));
-                                    //If offsetHeightByNormals is checked, change spawn height depending on normals so roots and things don't stick out
-                                    if (selectedOb.offsetHeightByNormals)
-                                    {
-                                        //100 is the multiple so it doesn't stick out of the terrain on large slopes
-                                        spawnedPosition.y -= (1 - Mathf.Abs(spotNormal.y)) * 100;
-                                    }
-                                    //Rotate objects
-                                    Vector3 objectRotation = Vector3.zero;
-                                    //If alignNormals is checked, rotate to match the normals at this spot on the terrain
-                                    if (selectedOb.alignNormals)
-                                    {
-                                        objectRotation = spotNormal;
-                                    }
-                                    objectRotation.y = Random.Range(0, 360);
-                                    //Spawn the object
-                                    GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, Quaternion.FromToRotation(transform.up, objectRotation));
-                                    //Spawn the object on the server
-                                    spawnedObject.GetComponent<Unity.Netcode.NetworkObject>().Spawn(true);
-                                    if (selectedOb.terrainBlending)
-                                    {
-
-                                        spawnedObject.GetComponent<Renderer>().material = customTerrainBlendMaterial;
-                                    }
-                                    //Select a random point between 0 and 1 for the scale of the object
-                                    float randomAmnt = Random.Range(0f, 1f);
-                                    //Evaluate that point on the objects animation curve to get the scale of the object
-                                    float newObjectScale = selectedOb.scale.Evaluate(randomAmnt);
-                                    spawnedObject.transform.localScale = new Vector3(newObjectScale * selectedOb.scaleMultiplier.x, newObjectScale * selectedOb.scaleMultiplier.y, newObjectScale * selectedOb.scaleMultiplier.z);
-                                    //Name the object
-                                    spawnedObject.name = selectedOb.name;
                                 }
-                                
                             }
-                        
-                    
-                }
-                else
-                {
-                  
-                }
-                //Timeout for a frame if we reach a certain amount of values, timeout is less often than others as density modifier means less values are computed
 
-                if (y % (currentSpeedSettings.maxIterationsPerFrame * 3) == 0)
-                {
-                    //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
-                    yield return new WaitForEndOfFrame();
+                            //Log an error if somehow an object failed to be selected
+                            if (selectedOb == null)
+                            {
+                            }
+                            else
+                            {
+
+                                //Store a reference to the tiles normals for proper placement
+                                //Set the position of where the object should spawn
+                                Vector3 spawnedPosition = new Vector3(updatedTilePosition.x + (x / 1.025f), tDatas[tileNumber].GetHeight(x, y) + selectedOb.yOffset, updatedTilePosition.z + (y / 1.025f));
+                                //If offsetHeightByNormals is checked, change spawn height depending on normals so roots and things don't stick out
+                                if (selectedOb.offsetHeightByNormals)
+                                {
+                                    //100 is the multiple so it doesn't stick out of the terrain on large slopes
+                                    // spawnedPosition.y -= (1 - Mathf.Abs(spotNormal.y)) * 100;
+                                }
+
+                                /* * * Set Rotation of the object and instantiate * * */
+                                Quaternion rotQuat = new Quaternion();
+                                if (selectedOb.alignNormals)
+                                {
+                                    if (selectedOb.name == "Pine Rock")
+                                    {
+                                        RaycastHit previewHit;
+
+                                        if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 2, spawnedPosition.z), Vector3.down), out previewHit, 10f))
+                                        {
+                                            spotNormal = previewHit.normal;
+                                        }
+                                    }
+                                }
+                                rotQuat = rotQuat * Quaternion.Euler(0, Random.Range(0, 360), 0);
+
+                                //Spawn the object
+                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, rotQuat);
+                                //Spawn the object on the server
+                                spawnedObject.GetComponent<Unity.Netcode.NetworkObject>().Spawn(true);
+                                if (selectedOb.terrainBlending)
+                                {
+
+                                    spawnedObject.GetComponent<Renderer>().material = customTerrainBlendMaterial;
+                                }
+                                //Select a random point between 0 and 1 for the scale of the object
+                                float randomAmnt = Random.Range(0f, 1f);
+                                //Evaluate that point on the objects animation curve to get the scale of the object
+                                float newObjectScale = selectedOb.scale.Evaluate(randomAmnt);
+                                spawnedObject.transform.localScale = new Vector3(newObjectScale * selectedOb.scaleMultiplier.x, newObjectScale * selectedOb.scaleMultiplier.y, newObjectScale * selectedOb.scaleMultiplier.z);
+                                //Name the object
+                                spawnedObject.name = selectedOb.name;
+                            }
+
+                        }
+
+
+                    }
+                    else
+                    {
+
+                    }
+                    //Timeout for a frame if we reach a certain amount of values, timeout is less often than others as density modifier means less values are computed
+
+                    if (y % (currentSpeedSettings.maxIterationsPerFrame * 3) == 0)
+                    {
+                        //Later maybe have options in settings to have faster or slower gen depending on how you want your performance
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
             }
-        }
 
-        //Update the InTerra_API with this new terrain data
-        InTerra.InTerra_Data.UpdateTerrainData(true);
+            //Update the InTerra_API with this new terrain data
+            InTerra.InTerra_Data.UpdateTerrainData(true);
+        }
         #endregion
         voronoiMap.Dispose();
+        genScreen.genAmount += 1;
+        genScreen.RefreshGenerationUI();
         moveNext = true;
-        
+
         yield break;
     }
 
@@ -1291,7 +1304,7 @@ public class WorldGen : MonoBehaviour
         //Define the size of the normal grid
         int gridSize = Mathf.RoundToInt(dimensions / regionAmount);
         //Use a for loop to iterate through all the surrounding tiles. The loop will iterate 8 times as each tile will have eight neighbors 
-        for (int i=0; i<8; i++)
+        for (int i = 0; i < 8; i++)
         {
             //Define values that will be used for each statement
             uint offsetX = 0;
@@ -1311,7 +1324,7 @@ public class WorldGen : MonoBehaviour
                     break;
                 //Top right tile
                 case 2:
-                    offsetX = (uint)offset. x + 1;
+                    offsetX = (uint)offset.x + 1;
                     offsetY = (uint)offset.y + 1;
                     break;
                 //Middle left tile
@@ -1341,7 +1354,7 @@ public class WorldGen : MonoBehaviour
                     break;
             }
             //Ensure the offset isn't zero
-            if(offsetX == 0)
+            if (offsetX == 0)
             {
                 offsetX = 999999;
             }
@@ -1369,12 +1382,12 @@ public class WorldGen : MonoBehaviour
             //Set the edges of the tile map. Use a switch statement to determine what values to fill in, depending on the tile
             switch (i)
             {
-                
+
                 //Top left tile - only needs one value, the top left corner
                 case 0:
                     //Subtract one from regionAmount because the offset of the main array starts at zero, not one
-                    xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 1000));
-                    yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 2000));
+                    xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 1000));
+                    yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 2000));
                     //Create the original number
                     originalNumber = (uint)xPointRandom.NextInt(0, 100000);
                     //Bitshift to free some room
@@ -1391,16 +1404,16 @@ public class WorldGen : MonoBehaviour
                     points[0, 0].x = xPosition;
                     points[0, 0].y = yPosition;
                     weights[0, 0] = randomAmnts.NextFloat(0, 1);
-                   
+
 
                     break;
                 //Top middle tile - needs the top row set except for edges
                 case 1:
 
-                   for(int tilePos=0; tilePos<regionAmount; tilePos++)
+                    for (int tilePos = 0; tilePos < regionAmount; tilePos++)
                     {
                         //Random structs and bitshifting
-                        xPointRandom = new Unity.Mathematics.Random((uint)((tilePos*694) + 1000));
+                        xPointRandom = new Unity.Mathematics.Random((uint)((tilePos * 694) + 1000));
                         yPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 2000));
                         originalNumber = (uint)xPointRandom.NextInt(0, 100000);
                         combinedNumber = originalNumber << 16;
@@ -1412,11 +1425,11 @@ public class WorldGen : MonoBehaviour
                         points[tilePos + 1, 0].x = xPosition;
                         points[tilePos + 1, 0].y = yPosition;
                         weights[tilePos + 1, 0] = randomAmnts.NextFloat(0, 1);
-                        
-                       
-                      
+
+
+
                     }
-                           
+
 
                     break;
                 //Top right tile - only needs one value, the top right corner
@@ -1438,7 +1451,7 @@ public class WorldGen : MonoBehaviour
                     points[regionAmount + 1, 0].x = xPosition;
                     points[regionAmount + 1, 0].y = yPosition;
                     weights[regionAmount + 1, 0] = randomAmnts.NextFloat(0, 1);
-                    
+
 
                     break;
                 //Middle left tile - needs the left column set except for the edges
@@ -1446,7 +1459,7 @@ public class WorldGen : MonoBehaviour
                     for (int tilePos = 0; tilePos < regionAmount; tilePos++)
                     {
                         //Random structs and bitshifting
-                        xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount-1)*694) + 1000));
+                        xPointRandom = new Unity.Mathematics.Random((uint)(((regionAmount - 1) * 694) + 1000));
                         yPointRandom = new Unity.Mathematics.Random((uint)((tilePos * 694) + 2000));
                         originalNumber = (uint)xPointRandom.NextInt(0, 100000);
                         combinedNumber = originalNumber << 16;
@@ -1559,32 +1572,32 @@ public class WorldGen : MonoBehaviour
 
 
 
-        
+
         //Set the middle of the tile map
-        for (int y=0; y<regionAmount; y++)
+        for (int y = 0; y < regionAmount; y++)
         {
-            for(int x=0; x<regionAmount; x++)
+            for (int x = 0; x < regionAmount; x++)
             {
                 //Generate random for each point - X and Y are offset by 1000 as to not attempt a zero seed
-                Unity.Mathematics.Random xPointRandom = new Unity.Mathematics.Random((uint)((x*694) + 1000));
-                Unity.Mathematics.Random yPointRandom = new Unity.Mathematics.Random((uint)((y*694) + 2000));
-                
+                Unity.Mathematics.Random xPointRandom = new Unity.Mathematics.Random((uint)((x * 694) + 1000));
+                Unity.Mathematics.Random yPointRandom = new Unity.Mathematics.Random((uint)((y * 694) + 2000));
+
                 uint originalNumber = (uint)xPointRandom.NextInt(0, 100000);
-                
+
                 uint combinedNumber = originalNumber << 16;
                 combinedNumber |= (uint)yPointRandom.NextInt(0, 100000);
-                
-                Unity.Mathematics.Random randomAmnt = new Unity.Mathematics.Random(combinedNumber+tileOverallSeed);
-               
+
+                Unity.Mathematics.Random randomAmnt = new Unity.Mathematics.Random(combinedNumber + tileOverallSeed);
+
                 //X and Y are shifted by one to create a ring that will generate with the adjacent tiles points
-                points[x+1,y+1].x = ((x)*gridSize) + randomAmnt.NextInt(0, gridSize);
-                points[x+1,y+1].y = ((y)*gridSize) + randomAmnt.NextInt(0, gridSize);
+                points[x + 1, y + 1].x = ((x) * gridSize) + randomAmnt.NextInt(0, gridSize);
+                points[x + 1, y + 1].y = ((y) * gridSize) + randomAmnt.NextInt(0, gridSize);
                 weights[x + 1, y + 1] = randomAmnt.NextFloat(0, 1);
-                
+
             }
-            
+
         }
-       
+
 
 
         //Get points
@@ -1598,9 +1611,9 @@ public class WorldGen : MonoBehaviour
                 int2 secondValue = 0;
                 //Adding 2 to make room for tile borders
                 float dist = 0;
-                for(int pointY=0; pointY<regionAmount+2; pointY++)
+                for (int pointY = 0; pointY < regionAmount + 2; pointY++)
                 {
-                    for(int pointX = 0; pointX<regionAmount+2; pointX++)
+                    for (int pointX = 0; pointX < regionAmount + 2; pointX++)
                     {
                         dist = Vector2.Distance(new Vector2(x, y), points[pointX, pointY]);
                         if (dist < distance)
@@ -1623,22 +1636,22 @@ public class WorldGen : MonoBehaviour
                     }
                 }
                 float blendAmnt = 1;
-               
+
                 float maxPixelDistance = Mathf.Abs(dist - secondDistance);
                 //Check if the distance between points is actually smaller than the blendPixelAmount
-                if(Mathf.Abs(distance - secondDistance) <= blendPixelAmount)
+                if (Mathf.Abs(distance - secondDistance) <= blendPixelAmount)
                 {
-                 
-                    
+
+
                     blendAmnt = 1 - ((Mathf.Abs(distance - secondDistance) / blendPixelAmount));
 
-                   
+
                 }
                 //Set value
                 voronoiNative[(((dimensions - 1) - y) * dimensions) + x] = new float3(weights[value.x, value.y], blendAmnt, weights[secondValue.x, secondValue.y]);
-                
+
                 //If it is close enough, blend
-               
+
 
             }
             if (y % (currentSpeedSettings.maxIterationsPerFrame) == 0)
@@ -1649,7 +1662,7 @@ public class WorldGen : MonoBehaviour
 
 
 
-        
+
         voronoiFinishCompletion = true;
         yield break;
     }
@@ -1662,7 +1675,8 @@ public class WorldGen : MonoBehaviour
         //Call the GPUInstancer API function to sync the terrain with the manager
 
         //Set the camera of the manager
-        detailManager.SetCamera(Camera.main);
+        //detailManager.SetCamera(Camera.main);
+        detailManager.autoSelectCamera = true;
 
 
         //Fill in settings to the detail manager
@@ -1690,14 +1704,9 @@ public class WorldGen : MonoBehaviour
         }
         GPUInstancerAPI.InitializeGPUInstancer(detailManager);
         detailManager.enabled = true;
-        
-       
-            
-        
+
+
+
+
     }
 }
-
-
-
-
-

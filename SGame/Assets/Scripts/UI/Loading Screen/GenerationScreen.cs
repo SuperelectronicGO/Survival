@@ -6,26 +6,17 @@ using TMPro;
 
 public class GenerationScreen : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI genStageText;
+    public GameObject canvasObject;
+
     [SerializeField] private TextMeshProUGUI genAmountText;
+    [SerializeField] private Image fillBar;
 
     [SerializeField] private WorldGen gen;
-    public string currentGenStage;
-    public string genAmount;
-    // Start is called before the first frame update
-    void Start()
+    public int genAmount;
+   public void RefreshGenerationUI()
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-       
-    }
-   public void refreshGenerationUI()
-    {
-        genStageText.text = currentGenStage;
-        genAmountText.text = genAmount;
+        genAmountText.text = $"{genAmount}/53";
+        float genAm = genAmount;
+        fillBar.fillAmount = (float)(genAm / 53);
     }
 }
