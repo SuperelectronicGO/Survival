@@ -109,7 +109,7 @@ public class WorldGen : MonoBehaviour
 
             tDatas.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>().terrainData);
             //set material
-            terrains[i].materialTemplate = terrainMaterial;
+           //terrains[i].materialTemplate = terrainMaterial;
         }
 
         TerrainLayer[] layers = new TerrainLayer[biomeStorage.biomes.Length];
@@ -294,6 +294,15 @@ public class WorldGen : MonoBehaviour
             Debug.Log("Finished tile " + (num - 1));
         }
 
+        //Alert all clients that generation is done if we are the host. If not, wait until the host is done to spawn
+      //  if (NetworkManager.Singleton.IsHost)
+      //  {
+      //      PlayerNetwork.instance.AlertGenerationDoneClientRPC();
+      //  }
+       // else
+      //  {
+      //      yield return new WaitUntil(() => PlayerNetwork.instance.hostFinishedGenerating == true);
+      //  }
         genScreen.canvasObject.SetActive(false);
         PlayerNetwork.instance.SpawnPlayer();
         yield break;

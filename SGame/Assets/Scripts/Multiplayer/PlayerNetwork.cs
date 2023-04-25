@@ -26,7 +26,9 @@ public class PlayerNetwork : NetworkBehaviour
     [SerializeField] private Image secondaryCrosshairComponent;
     [Header("World Text")]
     [SerializeField] private WorldItemTextManager worldTextManager;
-
+    [Header("World Gen References")]
+    public bool hostFinishedGenerating = false;
+    
     private void Start()
     {
         instance = this;
@@ -107,6 +109,13 @@ public class PlayerNetwork : NetworkBehaviour
     {
         GameObject play = Instantiate(playerPrefab, transform.position, Quaternion.identity);
         play.GetComponent<NetworkObject>().SpawnAsPlayerObject(ownerId);
+    }
+
+    //ClientRpc to alert all clients the host is done generating
+    [ClientRpc]
+    public void AlertGenerationDoneClientRPC()
+    {
+        PlayerNetwork.instance.hostFinishedGenerating = true;
     }
    
 }
