@@ -179,7 +179,8 @@ public class SpellManager : NetworkBehaviour
         }
        
     }
-   
+
+    #region setup functions
     public void setHotbarManager(HotbarManager manager)
     {
         hotbarManager = manager;
@@ -188,7 +189,14 @@ public class SpellManager : NetworkBehaviour
     {
         player = handler;
     }
+    #endregion
 
+    [ServerRpc]
+    //Method that spawns a spell on the server
+    public void ThrowSpellServerRPC()
+    {
+
+    }
 }
 [System.Serializable]
 public class Spell
@@ -229,6 +237,54 @@ public class Spell
         return 0;
         
     }
+
+    /// <summary>
+    /// Method that converts a spell in class form to its struct equivelent
+    /// </summary>
+    /// <param name="spell"></param>
+    /// <returns>A copy of the spell in struct form</returns>
+    public SpellNetworkStruct SpellNetworkClassToStruct(Spell spell)
+    {
+        //Check if spell is null, and throw if it is
+        if(spell == null)
+        {
+            throw new System.NullReferenceException();
+        }
+        //Define a new SpellNetworkStruct
+        SpellNetworkStruct spellStruct = new SpellNetworkStruct
+        {
+            type = spell.type,
+            attributeTypes = new SpellAttribute.AttributeType[spell.attributes.Count],
+            attributeValues = new float[spell.attributes.Count]
+        };
+        //Copy over spell attribute values
+        for(int i=0; i<spell.attributes.Count; i++)
+        {
+            spellStruct.attributeTypes[i] = spell.attributes[i].attribute;
+            spellStruct.attributeValues[i] = spell.attributes[i].value;
+        }
+        //Return the final struct
+        return spellStruct;
+    }
+    /// <summary>
+    /// Method that converts a spell in struct form to its class equivelent
+    /// </summary>
+    /// <param name="spellStruct"></param>
+    /// <returns>A copy of the spell struct as a class</returns>
+    public Spell SpellNetworkStructToClass(SpellNetworkStruct spellStruct)
+    {
+        //Create a new spell
+        Spell spell = new Spell();
+        spell.type = spellStruct.type;
+        spell.attributes = new List<SpellAttribute>();
+        for(int i=0; i<spellStruct.attributeValues.Length; i++)
+        {
+            spell.attributes.Add(new SpellAttribute { attribute = spellStruct.attributeTypes[i], value = spellStruct.attributeValues[i] });
+        }
+        //Return the spell
+        return spell;
+    }
+
 }
 [System.Serializable]
 public class SpellAttribute{
@@ -241,6 +297,20 @@ public class SpellAttribute{
      }
     public AttributeType attribute;
     public float value;
+}
+[System.Serializable]
+public struct SpellNetworkStruct : INetworkSerializable
+{
+    public Spell.SpellType type;
+    //Attribute types and values
+    public SpellAttribute.AttributeType[] attributeTypes;
+    public float[] attributeValues;
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref type);
+        serializer.SerializeValue(ref attributeTypes);
+        serializer.SerializeValue(ref attributeValues);
+    }
 }
 
 

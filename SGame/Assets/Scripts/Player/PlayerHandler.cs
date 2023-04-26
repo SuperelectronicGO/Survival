@@ -137,6 +137,14 @@ public class PlayerHandler : NetworkBehaviour
     public void OnEquipNotUserOwned(Item item)
     {
         toolFilter.filterTools(item.itemType);
+        switch (item.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+        {
+            default:
+            case false:
+                break;
+            case true:
+                break;
+        }
     }
     //Method to set the active slot of the player
     public void SetActiveSlot(InventorySlot slot)

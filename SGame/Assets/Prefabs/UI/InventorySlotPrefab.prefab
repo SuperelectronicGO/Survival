@@ -135,7 +135,12 @@ MonoBehaviour:
   heldItem:
     itemType: 0
     amount: 0
+    spell:
+      spellActivationIndex: 0
+      type: 0
+      attributes: []
     attributes: []
+  slotType: 0
   inventory: {fileID: 0}
   itemImage: {fileID: 6422025017812862077}
   durabilityImage: {fileID: 6422025016266629394}
@@ -144,6 +149,7 @@ MonoBehaviour:
   canvas: {fileID: 0}
   selected: 0
   backgroundImage: {fileID: 0}
+  dirtied: 0
 --- !u!114 &6422025016310117766
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -294,7 +300,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6422025016924239728
 RectTransform:
   m_ObjectHideFlags: 0
@@ -459,7 +465,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 29a57c4c958004add8528ec566be63f0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b4e88f4be9bd4654b9b76a3dac45096f, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -535,7 +541,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 16
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 29a46a81e04aafd43bc9b13378c12d15, type: 2}
   m_sharedMaterial: {fileID: -38635659691613395, guid: 29a46a81e04aafd43bc9b13378c12d15,

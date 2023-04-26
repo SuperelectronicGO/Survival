@@ -295,16 +295,19 @@ public class WorldGen : MonoBehaviour
         }
 
         //Alert all clients that generation is done if we are the host. If not, wait until the host is done to spawn
-      //  if (NetworkManager.Singleton.IsHost)
-      //  {
-      //      PlayerNetwork.instance.AlertGenerationDoneClientRPC();
-      //  }
-       // else
-      //  {
-      //      yield return new WaitUntil(() => PlayerNetwork.instance.hostFinishedGenerating == true);
-      //  }
-        genScreen.canvasObject.SetActive(false);
+        if (NetworkManager.Singleton.IsHost)
+        {
+            PlayerNetwork.instance.AlertGenerationDoneClientRPC();
+            PlayerNetwork.instance.hostFinishedGenerating = true;
+        }
+        else
+        {
+            genScreen.SetWaitingForHost();
+            yield return new WaitUntil(() => PlayerNetwork.instance.hostFinishedGenerating == true);
+        }
         PlayerNetwork.instance.SpawnPlayer();
+        StartCoroutine(PlayerNetwork.instance.InventorySetupOnBeforeSpawn());
+        genScreen.canvasObject.SetActive(false);
         yield break;
     }
 
@@ -1055,7 +1058,8 @@ public class WorldGen : MonoBehaviour
         }
         else
         {
-            createManagerForTerrain(terrains[tileNumber], crossQuadCounts);
+            terrains[tileNumber].gameObject.AddComponent<GPUInstancerDelayCameraSet>();
+            terrains[tileNumber].GetComponent<GPUInstancerDelayCameraSet>().crossQuadCounts = crossQuadCounts;
         }
 
         yield return new WaitForEndOfFrame();
@@ -1217,15 +1221,14 @@ public class WorldGen : MonoBehaviour
                                 Quaternion rotQuat = new Quaternion();
                                 if (selectedOb.alignNormals)
                                 {
-                                    if (selectedOb.name == "Pine Rock")
-                                    {
+                                   
                                         RaycastHit previewHit;
 
-                                        if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 2, spawnedPosition.z), Vector3.down), out previewHit, 10f))
+                                        if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
                                         {
                                             spotNormal = previewHit.normal;
                                         }
-                                    }
+                                    
                                 }
                                 rotQuat = rotQuat * Quaternion.Euler(0, Random.Range(0, 360), 0);
 
@@ -1683,9 +1686,8 @@ public class WorldGen : MonoBehaviour
         detailManager.enabled = false;
         //Call the GPUInstancer API function to sync the terrain with the manager
 
-        //Set the camera of the manager
-        //detailManager.SetCamera(Camera.main);
-        detailManager.autoSelectCamera = true;
+        //Set the camera of the manager if generation is finished.
+        detailManager.SetCamera(Camera.main);
 
 
         //Fill in settings to the detail manager

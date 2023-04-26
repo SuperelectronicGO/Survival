@@ -72,6 +72,8 @@ public class PlayerNetwork : NetworkBehaviour
     {
         
     }
+
+    //Void that sets up every reference the player will need that can't be assigned from the prefab
     public void assignPlayerStartValues(GameObject playerObj)
     {
         PlayerHandler.instance = playerObj.GetComponent<PlayerHandler>();
@@ -94,7 +96,6 @@ public class PlayerNetwork : NetworkBehaviour
         hotbarManager.player = playerObj.GetComponent<PlayerHandler>();
         buildingManager.setPlayer(playerObj);
         buildingManager.playerCam = playerObj.transform.GetChild(0).GetComponent<Camera>();
-        inventory.refreshSlotValues(inventory.slots);
         hotbarManager.FirstTimeSlotEnable();
         //Send crosshair manager setup right after OnEnable
         crosshairManager.LateSetup();
@@ -102,7 +103,14 @@ public class PlayerNetwork : NetworkBehaviour
         worldTextManager.SetPlayerHead(playerObj.transform.GetChild(0));
         
     }
-
+    public IEnumerator InventorySetupOnBeforeSpawn()
+    {
+        inventory.gameObject.SetActive(true);
+        yield return new WaitForEndOfFrame();
+        inventory.refreshSlotValues(inventory.slots);
+        inventory.gameObject.SetActive(false);
+        yield break;
+    }
     //ServerRpc to spawn the player
     [ServerRpc(RequireOwnership = false)]
     public void SpawnPlayerServerRPC(ulong ownerId)

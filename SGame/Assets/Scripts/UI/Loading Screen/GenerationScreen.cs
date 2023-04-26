@@ -10,6 +10,8 @@ public class GenerationScreen : MonoBehaviour
 
     [SerializeField] private TextMeshProUGUI genAmountText;
     [SerializeField] private Image fillBar;
+    [SerializeField] private GameObject loadingBarParent;
+    [SerializeField] private GameObject waitForHostText;
 
     [SerializeField] private WorldGen gen;
     public int genAmount;
@@ -18,5 +20,10 @@ public class GenerationScreen : MonoBehaviour
         genAmountText.text = $"{genAmount}/53";
         float genAm = genAmount;
         fillBar.fillAmount = (float)(genAm / 53);
+    }
+    public void SetWaitingForHost()
+    {
+        loadingBarParent.SetActive(false);
+        waitForHostText.SetActive(true);
     }
 }
