@@ -455,8 +455,8 @@ VisualEffectResource:
       lightProbeUsage: 0
     m_CullingFlags: 0
     m_UpdateMode: 0
-    m_PreWarmDeltaTime: 0.2
-    m_PreWarmStepCount: 1
+    m_PreWarmDeltaTime: 0.19999999
+    m_PreWarmStepCount: 2
     m_InitialEventName: OnPlay
 --- !u!114 &8926484042661614602
 MonoBehaviour:

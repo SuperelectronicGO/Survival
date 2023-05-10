@@ -53,6 +53,7 @@ public class PlayerHandler : NetworkBehaviour
             
             StartCoroutine(CheckLockConditions());
         }
+        //Subscrive to the currentItemNetworkStruct changed event
         currentItemNetworkStruct.OnValueChanged += (ItemNetworkStruct previousValue, ItemNetworkStruct newValue) =>
         {
             //If not the owner, run logic when the current Item is changed 
@@ -64,15 +65,22 @@ public class PlayerHandler : NetworkBehaviour
                 OnEquipNotUserOwned(currentItem);
             }
         };
+        //Set the animator component
         anim = toolAnchor.GetComponent<Animator>();
         if (!IsOwner)
         {
             currentItem = currentItem.ItemNetworkStructToClass(currentItemNetworkStruct.Value);
             OnEquipNotUserOwned(currentItem);
+            Destroy(transform.GetChild(0).GetComponent<AudioListener>());
         }
     }
-    
-    // Update is called once per frame
+    private void Awake()
+    {
+        if (!IsOwner)
+        {
+            gameObject.AddComponent<NonHostComponents>();
+        }
+    }
     void Update()
     {
         /*If owner, and active item changes, run logic to

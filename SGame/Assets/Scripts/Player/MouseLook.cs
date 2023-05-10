@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
-
+using KinematicCharacterController;
 public class MouseLook : NetworkBehaviour
 {
     public UIManager uiManager;
@@ -11,6 +11,8 @@ public class MouseLook : NetworkBehaviour
     public Transform playerBody;
 
     float xRotation = 0f;
+    private PlayerCharacterController controller;
+    private MovePlayer movePlr;
     // Start is called before the first frame update
     public override void OnNetworkSpawn()
     {
@@ -20,9 +22,12 @@ public class MouseLook : NetworkBehaviour
             GetComponent<Camera>().enabled = false;
              
         }
+        controller = playerBody.GetComponent<PlayerCharacterController>();
+        movePlr = playerBody.GetComponent<MovePlayer>();
     }
 
     // Update is called once per frame
+    Vector3 rotation;
     void Update()
     {
         if (!IsOwner) { return; }
@@ -35,10 +40,15 @@ public class MouseLook : NetworkBehaviour
             {
                 xRotation -= mouseY;
                 xRotation = Mathf.Clamp(xRotation, -90f, 80f);
+            transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+            rotation += (Vector3.up * mouseX);
+            Quaternion rot = Quaternion.Euler(rotation);
+            //Call the character input after assigning our rotation so things don't feel delayed
+            movePlr.CharacterInput(rot);
 
-                transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-                playerBody.Rotate(Vector3.up * mouseX);
             }
+            
+           
         
     }
 }

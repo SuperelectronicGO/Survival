@@ -115,7 +115,7 @@ public class PlayerNetwork : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void SpawnPlayerServerRPC(ulong ownerId)
     {
-        GameObject play = Instantiate(playerPrefab, transform.position, Quaternion.identity);
+        GameObject play = Instantiate(playerPrefab, new Vector3(6060, 140, 5220), Quaternion.identity);
         play.GetComponent<NetworkObject>().SpawnAsPlayerObject(ownerId);
     }
 

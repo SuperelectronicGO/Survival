@@ -11,12 +11,13 @@ using Unity.Netcode;
 using Random = UnityEngine.Random;
 public class WorldGen : MonoBehaviour
 {
-
+    public GameObject coles;
+    public bool testing;
     List<Material> blendMats = new List<Material>();
 
     [Header("Speed")]
     public GenerationSpeedSettings currentSpeedSettings;
-    #region jobs
+    #region Jobs
     //Jobhandles for the generateSplat job and the generateDetails job
     JobHandle generateSplatHandle;
     JobHandle generateDetailsHandle;
@@ -58,7 +59,11 @@ public class WorldGen : MonoBehaviour
     public MapMagic.Core.MapMagicObject M_Graph;
     //The parent of all terrains
     public Transform terrainTransformParent;
-    //List of all main terrains terrains
+    //How tall the terrains are
+    [SerializeField] private int terrainHeight = 800;
+    //How large one dimension of the terrains heightmap is
+    [SerializeField] private int terrainHeightmapLength = 1025;
+    //List of all main terrains 
     private List<Terrain> terrains = new List<Terrain>();
     //List of all terrain parents
     private List<Transform> terrainParents = new List<Transform>();
@@ -85,8 +90,9 @@ public class WorldGen : MonoBehaviour
     private static Texture2D GPUInstancerWindWaveNormalTexture;
     //Arrays storing the max weights for all objects in each biome, so we don't have to calculate it every tile later
     public int[,] maxObjectWeights;
-
-
+    [Header("Building Data")]
+    [NonReorderable]
+    public List<BuildingData> buildings = new List<BuildingData>();
 
     #region temporary data (voronoi)
     private bool voronoiFinishCompletion = false;
@@ -176,16 +182,28 @@ public class WorldGen : MonoBehaviour
     {
 
 
-
-        if (Input.GetKeyDown(KeyCode.U)&&!GameNetworkManager.Instance.generateWorld)
+        if (!testing)
         {
-            // textureWorld();
-            //StartCoroutine(textureTerrains());
-            StartCoroutine(initialTerrainGeneration());
+            if (Input.GetKeyDown(KeyCode.U) && !GameNetworkManager.Instance.generateWorld)
+            {
+                // textureWorld();
+                //StartCoroutine(textureTerrains());
+                StartCoroutine(initialTerrainGeneration());
 
 
+            }
         }
+        else
+        {
+            if (Input.GetKeyDown(KeyCode.U))
+            {
+                // textureWorld();
+                //StartCoroutine(textureTerrains());
+                StartCoroutine(initialTerrainGeneration());
 
+
+            }
+        }
 
         if (orderInWorldGeneration == 0)
         {
@@ -284,11 +302,13 @@ public class WorldGen : MonoBehaviour
 
         int num = 0;
         beforeTerrainGeneration();
-        while (num < tDatas.Count)
+        GetBuildingSpotList();
+        while (num < tDatas.Count-50)
         {
-            StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num, new int2(Mathf.RoundToInt(terrains[num].transform.position.x / 1000), Mathf.RoundToInt(terrains[num].transform.position.z / 1000))));
-            yield return new WaitUntil(() => moveNext == true);
-
+            
+                StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num, new int2(Mathf.RoundToInt(terrains[num].transform.position.x / 1000), Mathf.RoundToInt(terrains[num].transform.position.z / 1000))));
+                yield return new WaitUntil(() => moveNext == true);
+            
             num += 1;
             moveNext = false;
             Debug.Log("Finished tile " + (num - 1));
@@ -595,7 +615,10 @@ public class WorldGen : MonoBehaviour
 
 
         // * * * * * Object generation references * * * * * \\
-
+        //Array storing the heightmap that we want to change
+        float[,] terrainObjectHeightmap = tDatas[tileNumber].GetHeights(0, 0, terrainHeightmapLength, terrainHeightmapLength);
+        //Array that gets filled in to block object spawns. 0 = object can spawn, 1 = object is blocked;
+        float[,] objectBlockerHeightmap = new float[terrainHeightmapLength, terrainHeightmapLength];
         //Int to store how far the generation loop should progress before spawning again
         int density = 8;
         //Changing bool to determine if a picked generation spot is blended with another biome
@@ -623,6 +646,95 @@ public class WorldGen : MonoBehaviour
 
         //Log this tile in the terrain tile biome list
         biomesPerTerrainTile.Add(new int[maxObjectWeights.GetLength(0), biomeStorage.biomes.Length]);
+        #endregion
+
+        #region Building Setup
+        bool hasBuilding = false;
+        int buildingIndex = 0;
+        for(int i=0; i<buildings.Count; i++)
+        {
+            if(buildings[i].terrainTileIndex == tileNumber)
+            {
+                hasBuilding = true;
+                buildingIndex = i;
+            }
+        }
+        //Loop through each building
+        if (hasBuilding)
+        {
+            for (int i = 0; i < buildings.Count; i++)
+            {
+                //Define a reference to the BuildingData
+                BuildingData buildingData = buildings[buildingIndex];
+                //Define radius and center values
+                int radius = buildingData.GetBuildingRadius();
+                Vector3 center = buildingData.centerPosition;
+                //Define a Vector2 containing the X and Z components of the center for use in distance caluclations
+                Vector2 centerVec2 = new Vector2(center.x, center.z);
+                //What height the terrain should target its smoothing towards
+                float targetHeight = center.y / terrainHeight;
+                //Loop through each point in a square around this building to create the smooth distance
+                for (int y = (int)center.z - radius; y < center.z + radius; y++)
+                {
+                    for (int x = (int)center.x - radius; x < center.x + radius; x++)
+                    {
+                        //Check if we fall inside the circle we want, and if so set the height
+                        float distanceFromCenter = Vector2.Distance(centerVec2, new Vector2(x, y));
+                        float heightToSet = targetHeight;
+                        if (distanceFromCenter <= radius)
+                        {
+                            //Check if we are within a spot where we should be fading
+                            if (radius-distanceFromCenter<buildingData.GetFadeMargin()){
+                                float offsetDistance = (terrainObjectHeightmap[y, x] - targetHeight);
+                                float distanceFromMiddleSLopeOffset = Mathf.Abs(distanceFromCenter - (buildingData.GetFadeMargin() / 2))/buildingData.GetFadeMargin();
+                                heightToSet = targetHeight + (offsetDistance*(1-((radius-distanceFromCenter)/buildingData.GetFadeMargin())));
+
+                            }
+
+
+
+
+                            terrainObjectHeightmap[y, x] = heightToSet + Random.Range(0f, 0.0002f); ;
+                            objectBlockerHeightmap[y, x] = 1;
+                        }
+                    }
+                }
+                //Set the position to place this object, and modify it by the objects offset
+                Vector3 placePosition = new Vector3((center.x / 1.024f)+terrains[tileNumber].transform.position.x, center.y, (center.z / 1.024f)+terrains[tileNumber].transform.position.z);
+                placePosition += buildingData.spawnOffset;
+                //Spawn the object, and set the scale
+                GameObject c = Instantiate(buildingData.model, placePosition, Quaternion.Euler(buildingData.spawnedRotationOffset));
+                c.transform.localScale = buildingData.spawnedScale;
+                //Create holes
+                if (buildingData.hasHoles)
+                {
+                    GenerationHoleCreator holeC = c.GetComponent<GenerationHoleCreator>();
+                    for(int n=0; n<holeC.holes.Length; n++)
+                    {
+                        SquareHole hole = holeC.holes[n];
+                        Vector3 terrainPosition = terrains[tileNumber].transform.position;
+                        Vector3 pos1TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos1.position);
+                        Vector3 pos2TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos2.position);
+                        bool[,] holeMap = hole.CreateHoleArray(pos1TH, pos2TH);
+                        Debug.Log($"{holeMap.GetLength(0)}, {holeMap.GetLength(1)} is array dimensions, setting them at {pos1TH.x}, {pos1TH.z}");
+                        tDatas[tileNumber].SetHoles((int)pos1TH.x, (int)pos1TH.z, holeMap);
+                    }
+                }
+                if (terrains[tileNumber].gameObject.activeInHierarchy)
+                {
+                    c.transform.GetChild(2).gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilSpawn>();
+                }
+                else
+                {
+                    GPUInstancerDelayDetailRemoverUntilTerrainActivation rem = terrains[tileNumber].gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilTerrainActivation>();
+                    rem.SetTargetObject(c.transform.GetChild(2));
+                }
+            }
+        }
+
+        //Set heights
+        tDatas[tileNumber].SetHeights(0, 0, terrainObjectHeightmap);
+        
         #endregion
 
         #region Texturing
@@ -684,7 +796,7 @@ public class WorldGen : MonoBehaviour
                 //Schedule the job
                 generateSplatHandle = generateSplatJob.Schedule(biomeNativeArrays[subNumber, m].Length, 64);
                 //Pause to not stutter frames
-                yield return new WaitUntil(() => generateSplatHandle.IsCompleted == true);
+                //yield return new WaitUntil(() => generateSplatHandle.IsCompleted == true);
                 generateSplatHandle.Complete();
                 yield return new WaitForSecondsRealtime(0.05f);
                 //Set which biomes have which tile array
@@ -830,7 +942,24 @@ public class WorldGen : MonoBehaviour
         humidNative.Dispose();
 
         #endregion
+        /*
+        for (int y = 0; y < biomeStorage.biomes.Length; y++)
+        {
+            for (int x = 0; x < biomeStorage.biomes[y].subBiomes.Length; x++)
+            {
+                if (biomeNativeArrays[x, y] != null)
+                {
+                    biomeNativeArrays[x, y].Dispose();
+                }
+            }
+        }
+        voronoiMap.Dispose();
+        /genScreen.genAmount += 1;
+        genScreen.RefreshGenerationUI();
+        moveNext = true;
 
+        yield break;
+        */
         #region Details
         //Store an array of what detail prototypes are used and their settings
         List<int> crossQuadCounts = new List<int>();
@@ -996,7 +1125,7 @@ public class WorldGen : MonoBehaviour
                     //1025x1025 even though detail is 1024x1024 to make room for splatmap
                     generateDetailsHandle = generateDetailsJob.Schedule((tDatas[tileNumber].detailHeight + 1) * (tDatas[tileNumber].detailWidth + 1), 128);
                     //Wait until the job is completed
-                    yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
+                   // yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
                     //Call the job to force completion because Unity throws an error if an attempt is made to access te jobs values without a Complete() call
                     generateDetailsHandle.Complete();
                     //Wait till the end of the frame
@@ -1051,6 +1180,7 @@ public class WorldGen : MonoBehaviour
                 }
             }
         }
+        
         if (!terrains[tileNumber].gameObject.activeInHierarchy)
         {
             terrains[tileNumber].gameObject.AddComponent<GPUInstancerSetupOnTerrainActivation>();
@@ -1063,6 +1193,10 @@ public class WorldGen : MonoBehaviour
         }
 
         yield return new WaitForEndOfFrame();
+
+        #endregion
+
+        #region large objects and buildings
 
         #endregion
 
@@ -1280,8 +1414,59 @@ public class WorldGen : MonoBehaviour
         yield break;
     }
 
+    //Method that gets a spot for every building we are going to create. 
+    private void GetBuildingSpotList()
+    {
+        List<int> attemptedTerrains = new List<int>();
+        //int randomTerrain = Random.Range(0, terrains.Count + 1);
+        int randomTerrain = Random.Range(0, 4);
+        buildings.Add(new BuildingData
+        {
+            type = BuildingData.BuildingType.BrokenColleseum,
+            centerPosition = new Vector3(),
+            terrainTileIndex = randomTerrain,
+            spawnOffset = new Vector3(0, 3.1f, 0),
+            spawnedScale = new Vector3(2, 2, 2),
+            model = coles,
+            hasHoles = true,
+            spawnedRotationOffset = new Vector3(0, 18.8f, 0)
+        }); ;
+        //Choose a random terrain for the coleseum
+        int buildingRadius = buildings[0].GetBuildingRadius();
+        //Bool to store if we have found a spot to place this building yet. We need flat ground.
+        bool foundSpot = false;
+        int cnt = 0;
+        while (foundSpot == false)
+        {
+            Vector3 middleSpot = new Vector3(Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius), 0, Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius));
+            Vector3 terrainNormal = tDatas[randomTerrain].GetInterpolatedNormal(middleSpot.x/terrainHeightmapLength, middleSpot.z/terrainHeightmapLength);
+            if (terrainNormal.x < 0.2f && terrainNormal.x > -0.2f && terrainNormal.z < 0.2f && terrainNormal.z > -0.2f)
+            {
+                float buildingMiddleHeight = tDatas[randomTerrain].GetInterpolatedHeight(middleSpot.x / 1024, middleSpot.z / 1024);
+                Debug.Log($"Height at middle spot is {buildingMiddleHeight}");
+                middleSpot.y = buildingMiddleHeight;
+                buildings[0].centerPosition = middleSpot;
+                buildings[0].terrainTileIndex = randomTerrain;
+                foundSpot = true;
+            }
+            else
+            {
+                cnt += 1;
 
-
+                if (cnt > 100)
+                {
+                    while (attemptedTerrains.Contains(randomTerrain))
+                    {
+                        randomTerrain = Random.Range(0, 4);
+                    }
+                    cnt = 0;
+                }
+            }
+        }
+        //Vector3 middleSpot = new Vector3(Random.Range(0+buildingRadius, terrainHeightmapLength-buildingRadius), 0, Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius));
+        
+        
+    }
 
 
 
@@ -1721,3 +1906,48 @@ public class WorldGen : MonoBehaviour
 
     }
 }
+[System.Serializable]
+public class BuildingData
+{
+    //Enum holding the different types of buildings
+    public enum BuildingType
+    {
+        BrokenColleseum,
+        SmallHouse
+    }
+    public BuildingType type;
+    public Vector3 centerPosition { get; set; }
+    public int terrainTileIndex;
+    public Vector3 spawnOffset;
+    public Vector3 spawnedScale;
+    public Vector3 spawnedRotationOffset;
+    public GameObject model;
+    public bool hasHoles;
+    public int GetBuildingRadius()
+        {
+            switch (type)
+            {
+                case BuildingType.BrokenColleseum:
+                    return 150;
+                case BuildingType.SmallHouse:
+                    return 10;
+                default:
+                    return 10;
+            }
+        }
+    public int GetFadeMargin()
+    {
+        switch (type)
+        {
+            case BuildingType.BrokenColleseum:
+                return 110;
+            case BuildingType.SmallHouse:
+                return 5;
+            default:
+                return 5;
+        }
+    }
+
+}
+    
+

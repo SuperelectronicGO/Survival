@@ -4,21 +4,17 @@ using UnityEngine;
 
 public class DeleteAfterTime : MonoBehaviour
 {
-    int time = 500;
+    [SerializeField] private float seconds;
     // Start is called before the first frame update
     void Start()
     {
-        
+        StartCoroutine(Wait());   
     }
 
-    // Update is called once per frame
-    void Update()
+    private IEnumerator Wait()
     {
-        time -= 1;
-        if (time < 0)
-        {
-            Destroy(this.gameObject);
-        }
-                
+        yield return new WaitForSecondsRealtime(seconds);
+        Destroy(this.gameObject);
+        yield break;
     }
 }

@@ -65,15 +65,4 @@ public class ItemAssets : MonoBehaviour
     public ItemSpawnScriptable oakLogSpawnScriptable;
     public ItemSpawnScriptable bagScriptable;
 
-
-
-
-
-
-
-
-
-    [Header("Spells")]
-    public GameObject fireballSpellObject;
-    public GameObject voidFireballSpellObject;
 }

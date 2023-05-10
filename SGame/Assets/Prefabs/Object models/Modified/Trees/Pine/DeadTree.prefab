@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3963208708632347003}
   - component: {fileID: 2360362238556413437}
   - component: {fileID: 3754485796017031276}
+  - component: {fileID: -4690210403491376254}
   m_Layer: 0
   m_Name: DeadTree
   m_TagString: Untagged
@@ -115,6 +116,32 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1.0452576, y: 28.988388, z: 1.1470642}
   m_Center: {x: 2.201065, y: 36.86744, z: -1.1457062}
+--- !u!114 &-4690210403491376254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3170772880513015982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 1
+  SyncScaleY: 1
+  SyncScaleZ: 1
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  InLocalSpace: 0
+  Interpolate: 1
 --- !u!1 &4569789992365597556
 GameObject:
   m_ObjectHideFlags: 0

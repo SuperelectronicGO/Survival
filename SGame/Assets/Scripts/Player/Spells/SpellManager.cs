@@ -2,11 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
+using Unity.Mathematics;
 public class SpellManager : NetworkBehaviour
 {
     [SerializeField] private KeyCode spellKeyOne, spellKeyTwo, spellKeyThree;
     public static SpellManager instance { get; private set; }
-    [SerializeField] private GameObject cam;
+    public GameObject cam;
     [SerializeField] private AnimationCurve chargeGraph;
     public float currentRetractSpeed, maxCrosshairExpansion;
     [NonReorderable]
@@ -17,15 +18,40 @@ public class SpellManager : NetworkBehaviour
     [SerializeField] private HotbarManager hotbarManager;
     [SerializeField] private PlayerHandler player;
     [SerializeField] private Transform spellAnchor;
+    //Network object of the player
+    private NetworkObject playerNetworkObject;
 
-    // Start is called before the first frame update
     public override void OnNetworkSpawn()
     {
         if (IsOwner)
         {
             instance = this;
         }
-         
+        playerNetworkObject = GetComponent<NetworkObject>();
+    }
+
+    //When we load in, if we are not the owner of this object, and it has a spell equipped, spawn its graphics
+    private void Start()
+    {
+        if (!IsOwner)
+        {
+            if (GetComponent<PlayerHandler>().currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+            {
+                GameObject g;
+                switch (GetComponent<PlayerHandler>().currentItem.spell.type)
+                {
+                    case Spell.SpellType.Fireball:
+                        g = Instantiate(SpellAssets.instance.fireballSpellGraphics, spellAnchor.transform.position, Quaternion.identity, spellAnchor.transform);
+                        GetComponent<NonHostComponents>().currentSpellGraphics = g;
+                        break;
+                    case Spell.SpellType.VoidFireball:
+                        g = Instantiate(SpellAssets.instance.voidFireballSpellGraphics, spellAnchor.transform.position, Quaternion.identity, spellAnchor.transform);
+                        GetComponent<NonHostComponents>().currentSpellGraphics = g;
+                        break;
+                }
+                
+            }
+        }
     }
 
     // Update is called once per frame
@@ -86,70 +112,36 @@ public class SpellManager : NetworkBehaviour
         switch (spell.type)
         {
             case Spell.SpellType.Fireball:
+                
                 //Make sure anchor position is 0,0,0
                 spellAnchor.localPosition = Vector3.zero;
-                g = Instantiate(ItemAssets.Instance.fireballSpellObject, spellAnchor.position, Quaternion.identity, spellAnchor);
+                g = Instantiate(SpellAssets.instance.HeldFireballSpell, spellAnchor.position, Quaternion.identity, spellAnchor);
                 g.GetComponent<FireballSpellLogic>().spell = spell;
                 g.GetComponent<FireballSpellLogic>().timeBeforeCast = spell.getAttributeValue(SpellAttribute.AttributeType.summonTime);
                 //If the activation index was one of the three keys tied to runes, set the rune slot as the active player slot so we don't use tools as well
                 player.SetActiveSlot(RuneManager.instance.GetSpellSlot(spell.spellActivationIndex));
                 //Deselect all hotbar slots
                 hotbarManager.DeselectAllSlots();
+                
+                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(spell), GetComponent<NetworkObject>());
                 return;
             case Spell.SpellType.VoidFireball:
+                
                 //Make sure anchor position is 0,0,0
                 spellAnchor.localPosition = Vector3.zero;
-                g = Instantiate(ItemAssets.Instance.voidFireballSpellObject, spellAnchor.position, Quaternion.identity, spellAnchor);
+                g = Instantiate(SpellAssets.instance.HeldVoidFireballSpell, spellAnchor.position, Quaternion.identity, spellAnchor);
                 g.GetComponent<FireballSpellLogic>().spell = spell;
                 g.GetComponent<FireballSpellLogic>().timeBeforeCast = spell.getAttributeValue(SpellAttribute.AttributeType.summonTime);
                 //If the activation index was one of the three keys tied to runes, set the rune slot as the active player slot so we don't use tools as well
                 player.SetActiveSlot(RuneManager.instance.GetSpellSlot(spell.spellActivationIndex));
                 //Deselect all hotbar slots
                 hotbarManager.DeselectAllSlots();
+                //Spawn graphics for other clients
+                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(spell), GetComponent<NetworkObject>());
                 return;
         }
     }
-    //Method that just switches the spell object from local to world space by unparenting
-    public void SetPositionToWorld(Transform t)
-    {
-        t.SetParent(null, true);
-    }
-    //Method used to throw a spell object
-    public void ThrowSpell(GameObject g, Spell spell)
-    {
-        Vector3 throwDir = cam.transform.forward;
-        switch (spell.type) {
-            
-                case Spell.SpellType.Fireball:
-                //Allow the spell to be affected by gravity
-                g.GetComponent<Rigidbody>().isKinematic = false;
-                //Enable the collider on the spell
-                g.GetComponent<SphereCollider>().enabled = true;
-                //The first child should be the trail component
-                g.transform.GetChild(0).gameObject.SetActive(true);
-                //Set the property of the shader graph to show its been thrown
-                g.GetComponent<ModifiyVFXGraphProperty>().SendVFXGraphEvent("Detatch");
-                g.GetComponent<Rigidbody>().AddForce(throwDir * 2500, ForceMode.Force);
-                //Reset charge amount
-                chargeAmount = 0;
-                break;
-            case Spell.SpellType.VoidFireball:
-                //Allow the spell to be affected by gravity
-                g.GetComponent<Rigidbody>().isKinematic = false;
-                //Enable the collider on the spell
-                g.GetComponent<SphereCollider>().enabled = true;
-                //The first child should be the trail component
-                g.transform.GetChild(0).gameObject.SetActive(true);
-                //Set the property of the shader graph to show its been thrown
-                g.GetComponent<ModifiyVFXGraphProperty>().SendVFXGraphEvent("Detatch");
-                g.GetComponent<Rigidbody>().AddForce(throwDir * 2500, ForceMode.Force);
-                //Reset charge amount
-                chargeAmount = 0;
-                break;
-            default:
-                break;
-        }
-    }
+   
     //Method called to update spell charge values
     private void OnSpellChargeChange(bool positive)
     {
@@ -191,12 +183,86 @@ public class SpellManager : NetworkBehaviour
     }
     #endregion
 
+    #region network RPCs
     [ServerRpc]
     //Method that spawns a spell on the server
-    public void ThrowSpellServerRPC()
+    public void ThrowSpellServerRPC(Vector3 originalPosition, SpellNetworkStruct spell, Vector3 throwDirection, float force)
     {
-
+        //Instantiate the spell template and spawn it
+        GameObject g = Instantiate(SpellAssets.instance.spellTemplate, new Vector3(originalPosition.x, originalPosition.y, originalPosition.z), Quaternion.identity);
+        g.GetComponent<SpellConstructor>().spell.Value = spell;
+        g.GetComponent<NetworkObject>().Spawn(true);
+        //Allow the spell to be affected by gravity
+        g.GetComponent<Rigidbody>().isKinematic = false;
+        //Enable the collider on the spell
+        g.GetComponent<SphereCollider>().enabled = true;
+        //Enable the first child - it should be the trail component
+        g.transform.GetChild(0).gameObject.SetActive(true);
+        //Set the property of the shader graph to show its been thrown
+        g.transform.GetChild(0).GetComponent<ModifiyVFXGraphProperty>().SendVFXGraphEvent("Detatch");
+        g.GetComponent<Rigidbody>().AddForce(throwDirection * force, ForceMode.Force);
     }
+    //ClientRpc that spawns the graphics of the spell
+    [ClientRpc]
+    public void SpawnSpellGraphicsClientRPC(ulong senderId, SpellNetworkStruct spellStruct, NetworkObjectReference playerObject)
+    {
+        if (playerObject.TryGet(out NetworkObject obj))
+        {
+            Debug.Log("recieved!");
+            //Make sure the owner of the spell doesn't get targeted by the ClientRPC
+            if (NetworkManager.LocalClientId != senderId)
+            {
+                Debug.Log("We are switching");
+                GameObject g;
+                switch (spellStruct.type)
+                {
+
+                    case Spell.SpellType.Fireball:
+                        g = Instantiate(SpellAssets.instance.fireballSpellGraphics, obj.GetComponent<SpellManager>().spellAnchor.transform.position, Quaternion.identity, obj.GetComponent<SpellManager>().spellAnchor.transform);
+                        obj.GetComponent<NonHostComponents>().currentSpellGraphics = g;
+                        break;
+                    case Spell.SpellType.VoidFireball:
+                        g = Instantiate(SpellAssets.instance.voidFireballSpellGraphics, obj.GetComponent<SpellManager>().spellAnchor.transform.position, Quaternion.identity, obj.GetComponent<SpellManager>().spellAnchor.transform);
+                        obj.GetComponent<NonHostComponents>().currentSpellGraphics = g;
+                        break;
+                }
+                Debug.Log("Spawned a spell of type " + spellStruct.type.ToString());
+            }
+        }
+        
+        
+    }
+    //ServerRpc that runs SpawnSpellGraphicsClientRPC
+    [ServerRpc(RequireOwnership = false)]
+    public void AskServerSpawnSpellGraphicsServerRPC(ulong senderId, SpellNetworkStruct spellStruct, NetworkObjectReference playerObject)
+    {
+        SpawnSpellGraphicsClientRPC(senderId, spellStruct, playerObject);
+    }
+    //ClientRpc that destroys the graphics of the spell
+    [ClientRpc]
+    public void DestroySpellGraphicsClientRPC(ulong senderId, NetworkObjectReference playerObject)
+    {
+        if (senderId != NetworkManager.LocalClientId)
+        {
+            if(playerObject.TryGet(out NetworkObject obj))
+            {
+                obj.GetComponent<NonHostComponents>().DestroyGraphics();
+            }
+        }
+    }
+    //ServerRPC that runs DestroySpellGraphicsClientRPC
+    [ServerRpc(RequireOwnership = false)]
+    public void AskServerDestroySpellGraphicsServerRPC(ulong senderId, NetworkObjectReference playerObject)
+    {
+        DestroySpellGraphicsClientRPC(senderId, playerObject);
+    }
+    //ClientRPC that spawns a death effect for the spell
+    [ClientRpc]
+    public void SpawnSpellDeathEffectClientRPC(Vector3 spawnPosition, Quaternion spawnRotation, int effectIndex)
+    {
+        Instantiate(SpellAssets.instance.spellEffects[effectIndex], spawnPosition, spawnRotation);
+    }
+    #endregion
 }
 [System.Serializable]
 public class Spell
@@ -298,6 +364,8 @@ public class SpellAttribute{
     public AttributeType attribute;
     public float value;
 }
+
+//Spell class in a network form so it can be serialized and sent in a RPC.
 [System.Serializable]
 public struct SpellNetworkStruct : INetworkSerializable
 {

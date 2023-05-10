@@ -10,7 +10,7 @@ public class ModifiyVFXGraphProperty : MonoBehaviour
     private bool moving = false;
     
     // Start is called before the first frame update
-    void Start()
+    void Awake()
     {
         asset = GetComponent<VisualEffect>();
     }
