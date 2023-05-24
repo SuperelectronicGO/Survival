@@ -347,95 +347,98 @@ public class Item
         
     }
 
-
-
-
-
-
-
-
-
-
+}
+//Class holding Item conversions to structs, and vice versa
+public static class ItemConversion{
     ///<summary>
-    ///Constructor that takes an Item struct and returns it as a class
+    ///Method that takes an Item class and returns it as a struct
     ///</summary>
-    public Item ItemNetworkStructToClass(ItemNetworkStruct itemStruct)
+    ///<returns> A copy of the class in struct form</returns>
+    public static ItemNetworkStruct ToStruct(this Item source)
+    {
+        if (source == null) throw new NullReferenceException("Attempting to convert a null object");
+        //Keep this - otherwise spell is null if its not a rune
+        if (source.spell == null)
+        {
+            source.spell = new Spell();
+        }
+        //Define a new itemStruct
+
+        ItemNetworkStruct itemStruct = new ItemNetworkStruct
+        {
+            type = source.itemType,
+            amount = source.amount,
+            attributeNames = new ItemAttribute.AttributeName[source.attributes.Count],
+            attributeValues = new float[source.attributes.Count],
+            attributeInfo = "",
+            spellType = new Spell.SpellType(),
+            spellAttributeTypes = new SpellAttribute.AttributeType[source.spell.attributes.Count],
+            spellAttributeValues = new float[source.spell.attributes.Count]
+        };
+
+
+
+        //Copy over item attribute values
+        for (int i = 0; i < source.attributes.Count; i++)
+        {
+            itemStruct.attributeNames[i] = source.attributes[i].attribute;
+            itemStruct.attributeValues[i] = source.attributes[i].value;
+            string addedString = source.attributes[i].info + " <end> ";
+            if ((itemStruct.attributeInfo + addedString).Length > 511) { throw new IndexOutOfRangeException("Attribute '" + source.attributes[i].attribute.ToString() + "' exceeds the 512 byte limit"); }
+            itemStruct.attributeInfo += addedString;
+
+        }
+        //Copy over spell values
+        itemStruct.spellType = source.spell.type;
+        for (int i = 0; i < source.spell.attributes.Count; i++)
+        {
+            itemStruct.spellAttributeTypes[i] = source.spell.attributes[i].attribute;
+            itemStruct.spellAttributeValues[i] = source.spell.attributes[i].value;
+        }
+        return itemStruct;
+    }
+    ///<summary>
+    ///Method that takes an Item struct and returns it as a class
+    ///</summary>
+    ///<returns>A copy of the struct in class form</returns>
+    public static Item ToClass(this ItemNetworkStruct source)
     {
         Item item = new Item();
-        item.itemType = itemStruct.type;
-        item.amount = itemStruct.amount;
+        item.itemType = source.type;
+        item.amount = source.amount;
         item.attributes = new List<ItemAttribute>();
         item.spell = new Spell();
-        item.spell.type = itemStruct.spellType;
+        item.spell.type = source.spellType;
         //Copy item attributes from the struct
-        string[] attributeInfos = itemStruct.attributeInfo.ToString().Split(new String[] { " <end> " }, StringSplitOptions.None);
-        for(int i=0; i<itemStruct.attributeNames.Length; i++)
+        string[] attributeInfos = source.attributeInfo.ToString().Split(new String[] { " <end> " }, StringSplitOptions.None);
+        //Copy over Item and Spell attributes if their corresponding arrays are not null.
+        if (source.attributeNames != null)
         {
-            item.attributes.Add(new ItemAttribute
+            for (int i = 0; i < source.attributeNames.Length; i++)
             {
-                attribute = itemStruct.attributeNames[i],
-                value = itemStruct.attributeValues[i],
-                info = attributeInfos[i]
-            });
+                item.attributes.Add(new ItemAttribute
+                {
+                    attribute = source.attributeNames[i],
+                    value = source.attributeValues[i],
+                    info = attributeInfos[i]
+                });
+            }
         }
         //Copy spell attributes from the struct
         item.spell.attributes = new List<SpellAttribute>();
-        for(int i=0; i<itemStruct.spellAttributeTypes.Length; i++)
+        if (source.spellAttributeTypes != null)
         {
-            
-            item.spell.attributes.Add(new SpellAttribute
+            for (int i = 0; i < source.spellAttributeTypes.Length; i++)
             {
-                attribute = itemStruct.spellAttributeTypes[i],
-                value = itemStruct.spellAttributeValues[i]
-            });
+
+                item.spell.attributes.Add(new SpellAttribute
+                {
+                    attribute = source.spellAttributeTypes[i],
+                    value = source.spellAttributeValues[i]
+                });
+            }
         }
         return item;
-    }
-
-    ///<summary>
-    ///Constructor that takes an Item class and returns it as a struct
-    ///</summary>
-    public ItemNetworkStruct ItemNetworkClassToStruct(Item item)
-    {
-        //Keep this - otherwise spell is null if its not a rune
-        if (item.spell == null)
-        {
-            item.spell = new Spell();
-        }
-        //Define a new itemStruct
-        
-        ItemNetworkStruct itemStruct = new ItemNetworkStruct
-        {
-            type = item.itemType,
-            amount = item.amount,
-            attributeNames = new ItemAttribute.AttributeName[item.attributes.Count],
-            attributeValues = new float[item.attributes.Count],
-            attributeInfo = "",
-            spellType = new Spell.SpellType(),
-            spellAttributeTypes = new SpellAttribute.AttributeType[item.spell.attributes.Count],
-            spellAttributeValues = new float[item.spell.attributes.Count]
-        };
-        
-        
-
-        //Copy over item attribute values
-        for (int i=0; i<item.attributes.Count; i++)
-        {
-            itemStruct.attributeNames[i] = item.attributes[i].attribute;
-            itemStruct.attributeValues[i] = item.attributes[i].value;
-            string addedString = item.attributes[i].info + " <end> ";
-            if ((itemStruct.attributeInfo + addedString).Length> 511) { throw new IndexOutOfRangeException("Attribute '"+item.attributes[i].attribute.ToString()+"' exceeds the 512 byte limit"); }
-            itemStruct.attributeInfo += addedString;
-                
-        }
-        //Copy over spell values
-        itemStruct.spellType = item.spell.type;
-        for(int i=0; i<item.spell.attributes.Count; i++)
-        {
-            itemStruct.spellAttributeTypes[i] = item.spell.attributes[i].attribute;
-            itemStruct.spellAttributeValues[i] = item.spell.attributes[i].value;
-        }
-        return itemStruct;
     }
 }
 [Serializable]

@@ -19,7 +19,7 @@ public class Inventory : MonoBehaviour
     public GameObject player;
     public CraftingManager cManager;
     //List of all slots
-    public List<InventorySlot> slots = new List<InventorySlot>();
+    public List<ISInterface> slots = new List<ISInterface>();
     void Start()
     {
         slots.Clear();
@@ -27,14 +27,14 @@ public class Inventory : MonoBehaviour
         {
             if (hotbarParent.transform.GetChild(i).transform.name.Contains("HotbarSlot"))
             {
-                slots.Add(hotbarParent.transform.GetChild(i).GetComponent<InventorySlot>());
+                slots.Add(hotbarParent.transform.GetChild(i).GetComponent<ISInterface>());
             }
         }
         for (int i=0; i<slotParent.transform.childCount; i++)
         {
          if(slotParent.transform.GetChild(i).transform.name.Contains("InventorySlot"))
             {
-                slots.Add(slotParent.transform.GetChild(i).GetComponent<InventorySlot>());
+                slots.Add(slotParent.transform.GetChild(i).GetComponent<ISInterface>());
             }
         }
         mouseImage.gameObject.SetActive(false);
@@ -76,7 +76,7 @@ public class Inventory : MonoBehaviour
             mouseText.text = string.Empty;
         }
     }
-    public void refreshSlotValues(List<InventorySlot> slots)
+    public void refreshSlotValues(List<ISInterface> slots)
     {
         for(int i=0; i<slots.Count; i++)
         {
@@ -90,7 +90,7 @@ public class Inventory : MonoBehaviour
         
 
         //Check all slots for matching item
-        foreach(InventorySlot slot in slots)
+        foreach(ISInterface slot in slots)
         {
             Item slotItem = slot.heldItem;
             if ((slotItem.itemType == item.itemType) && (slotItem.amount!=slotItem.MaxStack()))
@@ -112,7 +112,7 @@ public class Inventory : MonoBehaviour
         }
         
         //If this point is reached, there is still some amount of the item to still put away, and we need to take up a new slot
-        foreach(InventorySlot slot in slots)
+        foreach(ISInterface slot in slots)
         {
             Item slotItem = slot.heldItem;
             if (slotItem.itemType == Item.ItemType.Blank)
@@ -150,10 +150,10 @@ public class Inventory : MonoBehaviour
         PlayerHandler.instance.DropItem(item);
         refreshSlotValues(slots);
     }
-    public void RemoveItem(Item item, List<InventorySlot> slots)
+    public void RemoveItem(Item item, List<ISInterface> slots)
     {
         int amount = item.amount;
-        foreach(InventorySlot slot in slots)
+        foreach(ISInterface slot in slots)
         {
             if(slot.heldItem.itemType == item.itemType)
             {
@@ -180,7 +180,7 @@ public class Inventory : MonoBehaviour
     }
     public bool HasItem(Item item) {
         int amount = 0;
-        foreach (InventorySlot slot in slots)
+        foreach (ISInterface slot in slots)
         {
             if (slot.heldItem.itemType == item.itemType)
             {

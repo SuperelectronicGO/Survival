@@ -9,12 +9,15 @@ using Unity.Mathematics;
 using GPUInstancer;
 using Unity.Netcode;
 using Random = UnityEngine.Random;
-public class WorldGen : MonoBehaviour
+public class WorldGen : NetworkBehaviour
 {
-    public GameObject coles;
+
     public bool testing;
     List<Material> blendMats = new List<Material>();
 
+
+
+    public static WorldGen instance { get; private set; }
     [Header("Speed")]
     public GenerationSpeedSettings currentSpeedSettings;
     #region Jobs
@@ -41,6 +44,8 @@ public class WorldGen : MonoBehaviour
     public NoisemapSettingsScriptable humidMapSettings;
     public NoisemapSettingsScriptable biomeDensityMapSettings;
     public VoronoiSettingsScriptable subBiomeMapSettings;
+
+
     #endregion
 
     [Header("Data")]
@@ -106,6 +111,7 @@ public class WorldGen : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        instance = this;
         //Set terrain Biomes
         for (int i = 0; i < terrainTransformParent.childCount; i++)
         {
@@ -115,7 +121,7 @@ public class WorldGen : MonoBehaviour
 
             tDatas.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>().terrainData);
             //set material
-           //terrains[i].materialTemplate = terrainMaterial;
+            //terrains[i].materialTemplate = terrainMaterial;
         }
 
         TerrainLayer[] layers = new TerrainLayer[biomeStorage.biomes.Length];
@@ -170,17 +176,23 @@ public class WorldGen : MonoBehaviour
         }
         mapDemensions = new int2(1024, 1024);
 
-        //Generate world on load if selected in menu
-        if (GameNetworkManager.Instance.generateWorld)
+        //Generate world on load if selected in menu and we are host
+        if (GameNetworkManager.Instance != null)
         {
-            StartCoroutine(initialTerrainGeneration());
+            if (GameNetworkManager.Instance.generateWorld)
+            {
+                if (!NetworkManager.Singleton.IsHost) return;
+                StartCoroutine(initialTerrainGeneration());
+            }
         }
     }
-
     // Update is called once per frame
     void Update()
     {
-
+        if (NetworkManager.Singleton.IsHost && Input.GetKeyDown(KeyCode.O))
+        {
+            SGClientRPC();
+        }
 
         if (!testing)
         {
@@ -254,7 +266,11 @@ public class WorldGen : MonoBehaviour
 
     }
 
-
+    [ClientRpc]
+    public void SGClientRPC()
+    {
+        StartCoroutine(initialTerrainGeneration());
+    }
 
     //Setup method to initialize and generate certain values
     private void beforeTerrainGeneration()
@@ -299,16 +315,19 @@ public class WorldGen : MonoBehaviour
     bool moveNext = false;
     private IEnumerator initialTerrainGeneration()
     {
-
         int num = 0;
         beforeTerrainGeneration();
-        GetBuildingSpotList();
-        while (num < tDatas.Count-50)
+        //Get the list of building spots if we are the server
+        if (NetworkManager.Singleton.IsServer)
         {
-            
-                StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num, new int2(Mathf.RoundToInt(terrains[num].transform.position.x / 1000), Mathf.RoundToInt(terrains[num].transform.position.z / 1000))));
-                yield return new WaitUntil(() => moveNext == true);
-            
+            GetBuildingSpotList();
+        }
+        while (num < tDatas.Count - 50)
+        {
+
+            StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num, new int2(Mathf.RoundToInt(terrains[num].transform.position.x / 1000), Mathf.RoundToInt(terrains[num].transform.position.z / 1000))));
+            yield return new WaitUntil(() => moveNext == true);
+
             num += 1;
             moveNext = false;
             Debug.Log("Finished tile " + (num - 1));
@@ -325,7 +344,10 @@ public class WorldGen : MonoBehaviour
             genScreen.SetWaitingForHost();
             yield return new WaitUntil(() => PlayerNetwork.instance.hostFinishedGenerating == true);
         }
-        PlayerNetwork.instance.SpawnPlayer();
+        if (GameNetworkManager.Instance != null)
+        {
+            PlayerNetwork.instance.SpawnPlayer();
+        }
         StartCoroutine(PlayerNetwork.instance.InventorySetupOnBeforeSpawn());
         genScreen.canvasObject.SetActive(false);
         yield break;
@@ -648,12 +670,14 @@ public class WorldGen : MonoBehaviour
         biomesPerTerrainTile.Add(new int[maxObjectWeights.GetLength(0), biomeStorage.biomes.Length]);
         #endregion
 
-        #region Building Setup
+        #region large Buildings
+        //Go through and spawn large buildings if we are the host
+
         bool hasBuilding = false;
         int buildingIndex = 0;
-        for(int i=0; i<buildings.Count; i++)
+        for (int i = 0; i < buildings.Count; i++)
         {
-            if(buildings[i].terrainTileIndex == tileNumber)
+            if (buildings[i].terrainTileIndex == tileNumber)
             {
                 hasBuilding = true;
                 buildingIndex = i;
@@ -662,79 +686,92 @@ public class WorldGen : MonoBehaviour
         //Loop through each building
         if (hasBuilding)
         {
-            for (int i = 0; i < buildings.Count; i++)
+            //Define a reference to the BuildingData
+            BuildingData buildingData = buildings[buildingIndex];
+            //Define radius and center values
+            int radius = buildingData.GetBuildingRadius();
+            Vector3 center = buildingData.centerPosition;
+            //Define a Vector2 containing the X and Z components of the center for use in distance caluclations
+            Vector2 centerVec2 = new Vector2(center.x, center.z);
+            //What height the terrain should target its smoothing towards
+            float targetHeight = center.y / terrainHeight;
+            //Loop through each point in a square around this building to create the smooth distance
+            float objectBlockRadius = buildingData.GetObjectBlockRadius();
+            for (int y = (int)center.z - radius; y < center.z + radius; y++)
             {
-                //Define a reference to the BuildingData
-                BuildingData buildingData = buildings[buildingIndex];
-                //Define radius and center values
-                int radius = buildingData.GetBuildingRadius();
-                Vector3 center = buildingData.centerPosition;
-                //Define a Vector2 containing the X and Z components of the center for use in distance caluclations
-                Vector2 centerVec2 = new Vector2(center.x, center.z);
-                //What height the terrain should target its smoothing towards
-                float targetHeight = center.y / terrainHeight;
-                //Loop through each point in a square around this building to create the smooth distance
-                for (int y = (int)center.z - radius; y < center.z + radius; y++)
+                for (int x = (int)center.x - radius; x < center.x + radius; x++)
                 {
-                    for (int x = (int)center.x - radius; x < center.x + radius; x++)
+                    //Check if we fall inside the circle we want, and if so set the height
+                    float distanceFromCenter = Vector2.Distance(centerVec2, new Vector2(x, y));
+                    float heightToSet = targetHeight;
+                    if (distanceFromCenter <= radius)
                     {
-                        //Check if we fall inside the circle we want, and if so set the height
-                        float distanceFromCenter = Vector2.Distance(centerVec2, new Vector2(x, y));
-                        float heightToSet = targetHeight;
-                        if (distanceFromCenter <= radius)
+                        //Check if we are within a spot where we should be fading
+                        if (radius - distanceFromCenter < buildingData.GetFadeMargin())
                         {
-                            //Check if we are within a spot where we should be fading
-                            if (radius-distanceFromCenter<buildingData.GetFadeMargin()){
-                                float offsetDistance = (terrainObjectHeightmap[y, x] - targetHeight);
-                                float distanceFromMiddleSLopeOffset = Mathf.Abs(distanceFromCenter - (buildingData.GetFadeMargin() / 2))/buildingData.GetFadeMargin();
-                                heightToSet = targetHeight + (offsetDistance*(1-((radius-distanceFromCenter)/buildingData.GetFadeMargin())));
+                            float offsetDistance = (terrainObjectHeightmap[y, x] - targetHeight);
+                            float distanceFromMiddleSLopeOffset = Mathf.Abs(distanceFromCenter - (buildingData.GetFadeMargin() / 2)) / buildingData.GetFadeMargin();
+                            heightToSet = targetHeight + (offsetDistance * (1 - ((radius - distanceFromCenter) / buildingData.GetFadeMargin())));
 
-                            }
+                        }
 
 
 
 
-                            terrainObjectHeightmap[y, x] = heightToSet + Random.Range(0f, 0.0002f); ;
+                        terrainObjectHeightmap[y, x] = heightToSet + Random.Range(0f, 0.0002f); ;
+                        if (distanceFromCenter < objectBlockRadius)
+                        {
                             objectBlockerHeightmap[y, x] = 1;
                         }
                     }
                 }
-                //Set the position to place this object, and modify it by the objects offset
-                Vector3 placePosition = new Vector3((center.x / 1.024f)+terrains[tileNumber].transform.position.x, center.y, (center.z / 1.024f)+terrains[tileNumber].transform.position.z);
-                placePosition += buildingData.spawnOffset;
-                //Spawn the object, and set the scale
-                GameObject c = Instantiate(buildingData.model, placePosition, Quaternion.Euler(buildingData.spawnedRotationOffset));
-                c.transform.localScale = buildingData.spawnedScale;
-                //Create holes
-                if (buildingData.hasHoles)
+            }
+            //Set the position to place this object, and modify it by the objects offset
+            Vector3 placePosition = new Vector3((center.x / 1.024f) + terrains[tileNumber].transform.position.x, center.y, (center.z / 1.024f) + terrains[tileNumber].transform.position.z);
+            placePosition += buildingData.spawnOffset;
+            //Spawn the object, and set the scale
+            GameObject c = Instantiate(buildingData.GetObjectModel(), placePosition, Quaternion.Euler(buildingData.spawnedRotationOffset));
+            c.transform.localScale = buildingData.spawnedScale;
+            //Create holes
+            if (buildingData.hasHoles)
+            {
+                GenerationHoleCreator holeC = c.GetComponent<GenerationHoleCreator>();
+                for (int n = 0; n < holeC.holes.Length; n++)
                 {
-                    GenerationHoleCreator holeC = c.GetComponent<GenerationHoleCreator>();
-                    for(int n=0; n<holeC.holes.Length; n++)
-                    {
-                        SquareHole hole = holeC.holes[n];
-                        Vector3 terrainPosition = terrains[tileNumber].transform.position;
-                        Vector3 pos1TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos1.position);
-                        Vector3 pos2TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos2.position);
-                        bool[,] holeMap = hole.CreateHoleArray(pos1TH, pos2TH);
-                        Debug.Log($"{holeMap.GetLength(0)}, {holeMap.GetLength(1)} is array dimensions, setting them at {pos1TH.x}, {pos1TH.z}");
-                        tDatas[tileNumber].SetHoles((int)pos1TH.x, (int)pos1TH.z, holeMap);
-                    }
-                }
-                if (terrains[tileNumber].gameObject.activeInHierarchy)
-                {
-                    c.transform.GetChild(2).gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilSpawn>();
-                }
-                else
-                {
-                    GPUInstancerDelayDetailRemoverUntilTerrainActivation rem = terrains[tileNumber].gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilTerrainActivation>();
-                    rem.SetTargetObject(c.transform.GetChild(2));
+                    SquareHole hole = holeC.holes[n];
+                    Vector3 terrainPosition = terrains[tileNumber].transform.position;
+                    Vector3 pos1TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos1.position);
+                    Vector3 pos2TH = hole.PositionToTerrainHeightmap(terrainPosition, hole.pos2.position);
+                    bool[,] holeMap = hole.CreateHoleArray(pos1TH, pos2TH);
+                    Debug.Log($"{holeMap.GetLength(0)}, {holeMap.GetLength(1)} is array dimensions, setting them at {pos1TH.x}, {pos1TH.z}");
+                    tDatas[tileNumber].SetHoles((int)pos1TH.x, (int)pos1TH.z, holeMap);
                 }
             }
+            //Remove Details
+            if (terrains[tileNumber].gameObject.activeInHierarchy)
+            {
+                c.transform.GetChild(2).gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilSpawn>();
+            }
+            else
+            {
+                GPUInstancerDelayDetailRemoverUntilTerrainActivation rem = terrains[tileNumber].gameObject.AddComponent<GPUInstancerDelayDetailRemoverUntilTerrainActivation>();
+                rem.SetTargetObject(c.transform.GetChild(2));
+            }
+            //Set layout groups - layout parent should be the 4th object underneath the building (Index of 3)
+            Transform layoutParent = c.transform.GetChild(3);
+            for (int i = 0; i < buildingData.layouts.Length; i++)
+            {
+                //Set layout string and prefab array of the layout
+                layoutParent.GetChild(i).GetComponent<RandomLayoutCreator>().SetLayoutValues(buildingData.GetLayoutScriptable().layoutGroups[i].layoutStrings[buildingData.layouts[i]], buildingData.GetLayoutScriptable().layoutGroups[i].prefabs);
+                //Create the layout
+                layoutParent.GetChild(i).GetComponent<RandomLayoutCreator>().CreateLayout();
+            }
+
         }
 
         //Set heights
         tDatas[tileNumber].SetHeights(0, 0, terrainObjectHeightmap);
-        
+
         #endregion
 
         #region Texturing
@@ -1125,7 +1162,7 @@ public class WorldGen : MonoBehaviour
                     //1025x1025 even though detail is 1024x1024 to make room for splatmap
                     generateDetailsHandle = generateDetailsJob.Schedule((tDatas[tileNumber].detailHeight + 1) * (tDatas[tileNumber].detailWidth + 1), 128);
                     //Wait until the job is completed
-                   // yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
+                    // yield return new WaitUntil(() => generateDetailsHandle.IsCompleted == true);
                     //Call the job to force completion because Unity throws an error if an attempt is made to access te jobs values without a Complete() call
                     generateDetailsHandle.Complete();
                     //Wait till the end of the frame
@@ -1180,7 +1217,7 @@ public class WorldGen : MonoBehaviour
                 }
             }
         }
-        
+
         if (!terrains[tileNumber].gameObject.activeInHierarchy)
         {
             terrains[tileNumber].gameObject.AddComponent<GPUInstancerSetupOnTerrainActivation>();
@@ -1217,6 +1254,9 @@ public class WorldGen : MonoBehaviour
             {
                 for (int x = 0; x < tDatas[tileNumber].heightmapResolution; x += density)
                 {
+                    //Return if blocked at this spot
+                    if (objectBlockerHeightmap[y, x] == 1) continue;
+
                     //Default doBlend to false
                     doBlend = false;
                     //Set biome density to default (0)
@@ -1355,14 +1395,14 @@ public class WorldGen : MonoBehaviour
                                 Quaternion rotQuat = new Quaternion();
                                 if (selectedOb.alignNormals)
                                 {
-                                   
-                                        RaycastHit previewHit;
 
-                                        if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
-                                        {
-                                            spotNormal = previewHit.normal;
-                                        }
-                                    
+                                    RaycastHit previewHit;
+
+                                    if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
+                                    {
+                                        spotNormal = previewHit.normal;
+                                    }
+
                                 }
                                 rotQuat = rotQuat * Quaternion.Euler(0, Random.Range(0, 360), 0);
 
@@ -1417,6 +1457,7 @@ public class WorldGen : MonoBehaviour
     //Method that gets a spot for every building we are going to create. 
     private void GetBuildingSpotList()
     {
+
         List<int> attemptedTerrains = new List<int>();
         //int randomTerrain = Random.Range(0, terrains.Count + 1);
         int randomTerrain = Random.Range(0, 4);
@@ -1427,10 +1468,18 @@ public class WorldGen : MonoBehaviour
             terrainTileIndex = randomTerrain,
             spawnOffset = new Vector3(0, 3.1f, 0),
             spawnedScale = new Vector3(2, 2, 2),
-            model = coles,
+            modelIndex = 0,
             hasHoles = true,
             spawnedRotationOffset = new Vector3(0, 18.8f, 0)
-        }); ;
+        });
+        //Fill the layout array with random layouts
+        RandomLayoutScriptable buildingScriptable = buildings[0].GetLayoutScriptable();
+        int[] randomLayoutIndexs = new int[buildingScriptable.layoutGroups.Length];
+        for (int i = 0; i < randomLayoutIndexs.Length; i++)
+        {
+            randomLayoutIndexs[i] = Random.Range(0, buildingScriptable.layoutGroups[i].layoutStrings.Length);
+        }
+        buildings[0].layouts = randomLayoutIndexs;
         //Choose a random terrain for the coleseum
         int buildingRadius = buildings[0].GetBuildingRadius();
         //Bool to store if we have found a spot to place this building yet. We need flat ground.
@@ -1439,7 +1488,7 @@ public class WorldGen : MonoBehaviour
         while (foundSpot == false)
         {
             Vector3 middleSpot = new Vector3(Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius), 0, Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius));
-            Vector3 terrainNormal = tDatas[randomTerrain].GetInterpolatedNormal(middleSpot.x/terrainHeightmapLength, middleSpot.z/terrainHeightmapLength);
+            Vector3 terrainNormal = tDatas[randomTerrain].GetInterpolatedNormal(middleSpot.x / terrainHeightmapLength, middleSpot.z / terrainHeightmapLength);
             if (terrainNormal.x < 0.2f && terrainNormal.x > -0.2f && terrainNormal.z < 0.2f && terrainNormal.z > -0.2f)
             {
                 float buildingMiddleHeight = tDatas[randomTerrain].GetInterpolatedHeight(middleSpot.x / 1024, middleSpot.z / 1024);
@@ -1463,17 +1512,17 @@ public class WorldGen : MonoBehaviour
                 }
             }
         }
-        //Vector3 middleSpot = new Vector3(Random.Range(0+buildingRadius, terrainHeightmapLength-buildingRadius), 0, Random.Range(0 + buildingRadius, terrainHeightmapLength - buildingRadius));
-        
-        
+        //Define an array to hold the BuildingDataNetworkStructs and pass it the data from the class list
+        BuildingDataNetworkStruct[] buildingStructs = new BuildingDataNetworkStruct[buildings.Count];
+        for (int i = 0; i < buildings.Count; i++)
+        {
+            buildingStructs[i] = buildings[i].ToStruct();
+        }
+        //After creating the struct array, call the clientRPC to sync the data and start the client generation
+        // SetBuildingListClientRPC(buildingStructs);
+        // SetBuildingListClientRpc();
+        PlayerNetwork.instance.SetWorldgenBuildingListClientRpc(buildingStructs);
     }
-
-
-
-
-
-
-
     //Voronoi map generation method that uses a coroutine in order to generate over multiple frames.
     private IEnumerator GenerateTileVoronoiMap(int dimensions, int regionAmount, uint seed, int2 offset, NativeArray<float3> voronoiNative, int blendPixelAmount)
     {
@@ -1905,6 +1954,11 @@ public class WorldGen : MonoBehaviour
 
 
     }
+    //Method that PlayerNetwork calls to start the terrain generation Coroutine
+    public void StartTerrainGenCo()
+    {
+        StartCoroutine(initialTerrainGeneration());
+    }
 }
 [System.Serializable]
 public class BuildingData
@@ -1915,26 +1969,36 @@ public class BuildingData
         BrokenColleseum,
         SmallHouse
     }
+    //Type of building
     public BuildingType type;
+    //The position of the center of this building
     public Vector3 centerPosition { get; set; }
+    //What terrain tile this building lies at
     public int terrainTileIndex;
+    //The position offset to spawn the building at
     public Vector3 spawnOffset;
+    //The scale to spawn the building at
     public Vector3 spawnedScale;
+    //What offset to apply to the building when it is spawned
     public Vector3 spawnedRotationOffset;
-    public GameObject model;
+    //Index to use when getting the model
+    public int modelIndex;
+    //If the building will generate any terrain holes
     public bool hasHoles;
+    //An int array holding the chosen layout of all the random layout creators
+    public int[] layouts;
     public int GetBuildingRadius()
+    {
+        switch (type)
         {
-            switch (type)
-            {
-                case BuildingType.BrokenColleseum:
-                    return 150;
-                case BuildingType.SmallHouse:
-                    return 10;
-                default:
-                    return 10;
-            }
+            case BuildingType.BrokenColleseum:
+                return 150;
+            case BuildingType.SmallHouse:
+                return 10;
+            default:
+                return 10;
         }
+    }
     public int GetFadeMargin()
     {
         switch (type)
@@ -1947,7 +2011,112 @@ public class BuildingData
                 return 5;
         }
     }
+    public int GetObjectBlockRadius()
+    {
+        switch (type)
+        {
+            case BuildingType.BrokenColleseum:
+                return 60;
+            case BuildingType.SmallHouse:
+                return 5;
+            default:
+                return 5;
+        }
+    }
+    public GameObject GetObjectModel()
+    {
+        switch (modelIndex)
+        {
+            default:
+                throw new System.NullReferenceException("Attempting to retrieve a model from an index that doesn't exist");
+            case 0:
+                return BuildingAssets.instance.brokenColleseumObject;
+        }
+    }
+    public RandomLayoutScriptable GetLayoutScriptable()
+    {
+        switch (type)
+        {
+            case BuildingType.BrokenColleseum:
+                return RandomLayoutAssets.instance.ColleseumLayout;
+            default:
+            case BuildingType.SmallHouse:
+                throw new System.NotImplementedException("Layout doesn't exist lmao");
+        }
+
+    }
 
 }
-    
+//Class handling conversions of BuildingData classes to structs and vice versa
+public static class BuildingDataConversion
+{
+    ///<summary>
+    ///Method that converts a BuildingData class to a struct
+    /// </summary>
+    /// <returns>A copy of the class in struct form</returns>
+    public static BuildingDataNetworkStruct ToStruct(this BuildingData source)
+    {
+        if (source == null) throw new System.NullReferenceException("Attempting to convert a null object");
+        return new BuildingDataNetworkStruct
+        {
+            type = source.type,
+            centerPosition = source.centerPosition,
+            terrainTileIndex = source.terrainTileIndex,
+            spawnOffset = source.spawnOffset,
+            spawnedScale = source.spawnedScale,
+            spawnedRotationOffset = source.spawnedRotationOffset,
+            modelIndex = source.modelIndex,
+            hasHoles = source.hasHoles,
+            layouts = source.layouts
+
+        };
+    }
+    ///<summary>
+    ///Method that converts a BuildingData struct to a class
+    /// </summary>
+    /// <returns>A copy of the struct in class form</returns>
+    public static BuildingData ToClass(this BuildingDataNetworkStruct source)
+    {
+        return new BuildingData
+        {
+            type = source.type,
+            centerPosition = source.centerPosition,
+            terrainTileIndex = source.terrainTileIndex,
+            spawnOffset = source.spawnOffset,
+            spawnedScale = source.spawnedScale,
+            spawnedRotationOffset = source.spawnedRotationOffset,
+            modelIndex = source.modelIndex,
+            hasHoles = source.hasHoles,
+            layouts = source.layouts
+        };
+    }
+}
+//BuildingData class in network struct form
+[System.Serializable]
+public struct BuildingDataNetworkStruct : INetworkSerializable
+{
+    public BuildingData.BuildingType type;
+    public Vector3 centerPosition;
+    public int terrainTileIndex;
+    public Vector3 spawnOffset;
+    public Vector3 spawnedScale;
+    public Vector3 spawnedRotationOffset;
+    public int modelIndex;
+    public bool hasHoles;
+    public int[] layouts;
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref type);
+        serializer.SerializeValue(ref centerPosition);
+        serializer.SerializeValue(ref terrainTileIndex);
+        serializer.SerializeValue(ref spawnOffset);
+        serializer.SerializeValue(ref spawnedScale);
+        serializer.SerializeValue(ref spawnedRotationOffset);
+        serializer.SerializeValue(ref modelIndex);
+        serializer.SerializeValue(ref hasHoles);
+        serializer.SerializeValue(ref layouts);
+    }
+}
+
+
 

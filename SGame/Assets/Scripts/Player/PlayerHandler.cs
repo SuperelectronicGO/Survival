@@ -8,9 +8,9 @@ using UnityEngine.SceneManagement;
 public class PlayerHandler : NetworkBehaviour
 {
     //Declare a singleton for this script
-    public static PlayerHandler instance { get;  set; }
-    
-    [Header ("Inventory Logic")]
+    public static PlayerHandler instance { get; set; }
+
+    [Header("Inventory Logic")]
 
     //The inventory component
     public Inventory inventory;
@@ -19,17 +19,14 @@ public class PlayerHandler : NetworkBehaviour
     public BuildingManager buildingManager;
 
     //Current slot we have equipped
-    [HideInInspector] public InventorySlot currentSlot;
+    [HideInInspector] public ISInterface currentSlot;
 
-    //Current Item we have equipped
-    public Item currentItem;
-    [SerializeField] private NetworkVariable<ItemNetworkStruct> currentItemNetworkStruct = new NetworkVariable<ItemNetworkStruct>(new ItemNetworkStruct(), NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     //Gameobject with the animator component
     public GameObject toolAnchor;
 
     //Component to control the current tool equipped
     [SerializeField] private ToolFilter toolFilter;
-    
+
     //Animator for the player
     public Animator anim;
 
@@ -41,16 +38,22 @@ public class PlayerHandler : NetworkBehaviour
     public bool ableToMouseLook = true;
     public bool ableToKey = true;
 
-    //Mark the GameObject as DontDestroyOnLoad when it spawns
-    
+    /* * * Network Variables * * */
+    //Health
+    [SerializeField] private NetworkVariable<float> playerHealth = new NetworkVariable<float>(100, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    //Max health
+    [SerializeField] private NetworkVariable<float> playerMaxHealth = new NetworkVariable<float>(100, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+    //Current Item we have equipped
+    public Item currentItem;
+    [SerializeField] private NetworkVariable<ItemNetworkStruct> currentItemNetworkStruct = new NetworkVariable<ItemNetworkStruct>(new ItemNetworkStruct(), NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
     //Don't do shit here for other scripts, sometimes it isn't set yet
     public override void OnNetworkSpawn()
     {
         if (IsOwner)
         {
-            
             Debug.Log("Is owner");
-            
             StartCoroutine(CheckLockConditions());
         }
         //Subscrive to the currentItemNetworkStruct changed event
@@ -61,7 +64,7 @@ public class PlayerHandler : NetworkBehaviour
              * -Filter the current tool, if one is equipped */
             if (!IsOwner)
             {
-                currentItem = currentItem.ItemNetworkStructToClass(newValue);
+                currentItem = newValue.ToClass();
                 OnEquipNotUserOwned(currentItem);
             }
         };
@@ -69,17 +72,22 @@ public class PlayerHandler : NetworkBehaviour
         anim = toolAnchor.GetComponent<Animator>();
         if (!IsOwner)
         {
-            currentItem = currentItem.ItemNetworkStructToClass(currentItemNetworkStruct.Value);
+            currentItem = currentItemNetworkStruct.Value.ToClass();
             OnEquipNotUserOwned(currentItem);
             Destroy(transform.GetChild(0).GetComponent<AudioListener>());
+            Destroy(GetComponent<KinematicCharacterController.KinematicCharacterMotor>());
+            Destroy(GetComponent<PlayerCharacterController>());
         }
     }
     private void Awake()
     {
+
+        
         if (!IsOwner)
         {
             gameObject.AddComponent<NonHostComponents>();
         }
+
     }
     void Update()
     {
@@ -96,7 +104,7 @@ public class PlayerHandler : NetworkBehaviour
             {
                 OnEquip(currentSlot.heldItem);
                 currentItem = currentSlot.heldItem;
-                currentItemNetworkStruct.Value = currentItem.ItemNetworkClassToStruct(currentItem);
+                currentItemNetworkStruct.Value = currentItem.ToStruct();
                 CrosshairManager.instance.ChangeCrosshairOnItem(currentItem);
             }
             if (Input.GetMouseButtonDown(0) && ableToMouseLook)
@@ -104,16 +112,16 @@ public class PlayerHandler : NetworkBehaviour
                 UseItem(currentSlot.heldItem);
             }
         }
-        
-        
 
+
+        
     }
 
     //Method that drops an item on the server and calls the RPC
     public void DropItem(Item item)
     {
-        
-        DropItemServerRPC(item.ItemNetworkClassToStruct(item));
+
+        DropItemServerRPC(item.ToStruct());
         return;
     }
     //Void called when the current Item is switched on the owned player
@@ -126,20 +134,20 @@ public class PlayerHandler : NetworkBehaviour
         {
             buildingManager.selectPrefab(item);
         }
-        
+
         switch (item.itemType)
         {
             default:
                 return;
             case Item.ItemType.StoneHatchet:
             case Item.ItemType.ShellAxe:
-               
-                    anim.Play("Pullout");
-                
+
+                anim.Play("Pullout");
+
 
                 return;
         }
-      
+
     }
     //Void called when the current item is switched for a player that isn't owned by the user
     public void OnEquipNotUserOwned(Item item)
@@ -155,7 +163,7 @@ public class PlayerHandler : NetworkBehaviour
         }
     }
     //Method to set the active slot of the player
-    public void SetActiveSlot(InventorySlot slot)
+    public void SetActiveSlot(ISInterface slot)
     {
         currentSlot = slot;
     }
@@ -188,6 +196,7 @@ public class PlayerHandler : NetworkBehaviour
         {
             ableToMouseLook = true;
             Cursor.lockState = CursorLockMode.Locked;
+            
         }
         if (KeyBlockers.Count != 0)
         {
@@ -207,12 +216,20 @@ public class PlayerHandler : NetworkBehaviour
         currentItem = itemToUse;
     }
     
+    //Method that damages the player
+    public delegate void UpdateVitalsUI(float health, float maxHealth);
+    public static event UpdateVitalsUI _UpdateVitalsUI;
+    public void DamagePlayer(float amount)
+    {
+            playerHealth.Value -= amount;
+            _UpdateVitalsUI(playerHealth.Value, playerMaxHealth.Value);
+    }
     //Server RPC's
     [ServerRpc]
     //Method that asks the server to drop the specified item
     public void DropItemServerRPC(ItemNetworkStruct itemStruct)
     {
-        
+
         //Get the spawn position for this item
         Vector3 spawnPos = this.transform.position + (this.transform.forward * 2);
         spawnPos.y += .5f;
@@ -224,12 +241,34 @@ public class PlayerHandler : NetworkBehaviour
     //Method that asks the server to destroy the specified item
     public void DestroyItemServerRPC(NetworkObjectReference objectToDestroy)
     {
-        if(objectToDestroy.TryGet(out NetworkObject obj))
+        if (objectToDestroy.TryGet(out NetworkObject obj))
         {
             obj.Despawn(true);
         }
     }
-   
+    [ServerRpc(RequireOwnership = false)]
+    //Damage the player on the server - this is for when we are attacked by creatures or other players
+    public void DamagePlayerServerRPC(NetworkObjectReference playerToDamage, float amount)
+    {
+        if (playerToDamage.TryGet(out NetworkObject obj))
+        {
+            ClientRpcParams clientRpcParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] {obj.OwnerClientId}
+                }
+            };
+            DamagePlayerClientRPC(amount, clientRpcParams);
+        }
+    }
+    [ClientRpc]
+    private void DamagePlayerClientRPC(float amount, ClientRpcParams clientRpcParams = default)
+    {
+        DamagePlayer(amount);
+    }
+
+    
    
    
    

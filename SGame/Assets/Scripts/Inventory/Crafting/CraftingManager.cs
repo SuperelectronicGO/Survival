@@ -17,7 +17,7 @@ public class CraftingManager : MonoBehaviour
     //The search bar for the crafting recipe field
     [SerializeField] private InputField searchBar;
     //The array of slots for crafting
-    [SerializeField] private List<InventorySlot> slots = new List<InventorySlot>();
+    [SerializeField] private List<ISInterface> slots = new List<ISInterface>();
     [Header("Anchors")]
     //Gameobject to use as the start pos for spawning the different recipes
     [SerializeField] private GameObject recipeIconParent;

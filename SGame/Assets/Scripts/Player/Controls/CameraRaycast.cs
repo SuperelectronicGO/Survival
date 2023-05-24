@@ -13,7 +13,7 @@ public class CameraRaycast : NetworkBehaviour
     private ReturnRaycastData raycastData;
     [SerializeField] private Inventory inventory;
     [SerializeField] private LayerMask ignoreLayers;
-    void FixedUpdate()
+    void Update()
     {
         if (!IsOwner) return;
         RaycastHit hit;
@@ -45,6 +45,9 @@ public class CameraRaycast : NetworkBehaviour
                 if (raycastData.isItem)
                 {
                     CheckItemRaycastOnKeypress();
+                }else if (raycastData.isChest)
+                {
+                    CheckChestRaycastOnKeypress();
                 }
             }
 
@@ -98,7 +101,9 @@ public class CameraRaycast : NetworkBehaviour
     {
         onSetWorldText(null, null, false);
     }
-    
+    /// <summary>
+    /// Attempts to pick up the current item and destroy its object.
+    /// </summary>
     public void CheckItemRaycastOnKeypress()
     {
         if (Input.GetKeyDown(KeyCode.F))
@@ -107,14 +112,25 @@ public class CameraRaycast : NetworkBehaviour
             inventory.AddItem(selectedItem);
             PlayerHandler.instance.DestroyItemServerRPC(selectedObject);
             return;
-            if (IsServer)
+        }
+    }
+    /// <summary>
+    /// Attempts to open the current storage. 
+    /// </summary>
+    public void CheckChestRaycastOnKeypress()
+    {
+        if (Input.GetKeyDown(KeyCode.F) && !UIManager.instance.inventoryOpen)
+        {
+            if (selectedObject.TryGetComponent(out NetworkStorage storage))
             {
-                selectedObject.GetComponent<NetworkObject>().Despawn(true);
+                StorageManager.instance.SetCurrentNetworkStorage(storage);
+                UIManager.instance.OpenInventory(false, true, chestSlots: storage.slotAmount, storageReference: storage);
             }
             else
             {
-                PlayerHandler.instance.DestroyItemServerRPC(selectedObject);
+                throw new System.NullReferenceException("No NetworkStorage component attachted to this gameobject!");
             }
+
         }
     }
     public void setInventory(Inventory inv)

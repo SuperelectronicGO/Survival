@@ -6,4 +6,5 @@ public class ReturnRaycastData : MonoBehaviour
 {
     public string returnedString;
     public bool isItem;
+    public bool isChest;
 }

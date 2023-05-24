@@ -13,10 +13,6 @@ public class MovePlayer : NetworkBehaviour
     private const string MouseScrollInput = "Mouse ScrollWheel";
     private const string HorizontalInput = "Horizontal";
     private const string VerticalInput = "Vertical";
-    private void Start()
-    {
-        cManager.isTyping = false;
-    }
     //CharacterInput is called by MouseLook after assigning camera rotation so things don't feel delayed
     public void CharacterInput(Quaternion cameraRotation)
     {

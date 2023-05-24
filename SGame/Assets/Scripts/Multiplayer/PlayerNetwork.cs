@@ -28,7 +28,6 @@ public class PlayerNetwork : NetworkBehaviour
     [SerializeField] private WorldItemTextManager worldTextManager;
     [Header("World Gen References")]
     public bool hostFinishedGenerating = false;
-    
     private void Start()
     {
         instance = this;
@@ -74,7 +73,7 @@ public class PlayerNetwork : NetworkBehaviour
     }
 
     //Void that sets up every reference the player will need that can't be assigned from the prefab
-    public void assignPlayerStartValues(GameObject playerObj)
+    public void AssignPlayerStartValues(GameObject playerObj)
     {
         PlayerHandler.instance = playerObj.GetComponent<PlayerHandler>();
         crosshairManager = playerObj.GetComponent<CrosshairManager>();
@@ -125,5 +124,22 @@ public class PlayerNetwork : NetworkBehaviour
     {
         PlayerNetwork.instance.hostFinishedGenerating = true;
     }
+    [ClientRpc]
+    public void SetWorldgenBuildingListClientRpc(BuildingDataNetworkStruct[] buildingArray)
+    {
+        //Return if we are the host
+        if (IsHost) { return; }
+        //Loop through each struct and add it to the list of buildings
+        WorldGen.instance.buildings.Clear();
+         for(int i=0; i<buildingArray.Length; i++)
+         {
+              WorldGen.instance.buildings.Add(buildingArray[i].ToClass());
+          }
+        //After all buildings have been synced, start generation
+        WorldGen.instance.StartTerrainGenCo();
+        Debug.Log($"Started generation! our first building has a middle spot at {WorldGen.instance.buildings[0].centerPosition}"); //Return if we are the host
+        
+    }
+
    
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class HotbarManager : MonoBehaviour
 {
-    public InventorySlot[] hotbarSlots;
+    public ISInterface[] hotbarSlots;
     public PlayerHandler player;
     public Color selectedColor;
     private int currentSlot = 1;

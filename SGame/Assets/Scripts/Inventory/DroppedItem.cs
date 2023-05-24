@@ -38,7 +38,7 @@ public class DroppedItem : NetworkBehaviour
     //Method the client calls when the itemStruct data is syced to construct
     private void SyncClientAndConstruct()
     {
-        item = item.ItemNetworkStructToClass(itemStruct.Value);
+        item = itemStruct.Value.ToClass();
         if (TryGetComponent<ItemSpawnStart>(out ItemSpawnStart spawnStart))
         {
             spawnStart.RecieveItemType(item);
@@ -49,7 +49,7 @@ public class DroppedItem : NetworkBehaviour
     {
         
         itemStruct.Value = sentItemStruct;
-        item = item.ItemNetworkStructToClass(itemStruct.Value);
+        item = itemStruct.Value.ToClass();
         if (TryGetComponent<ItemSpawnStart>(out ItemSpawnStart spawnStart))
         {
             spawnStart.RecieveItemType(item);

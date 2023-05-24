@@ -6,30 +6,14 @@ using Unity.Collections;
 using Random = UnityEngine.Random;
 public class RandomLayoutCreator : MonoBehaviour
 {
-    [SerializeField] private bool spawnOnStart;
-    [NonReorderable]
-    public objectPrefab[] prefabs;
-    [Serializable]
-    public struct objectPrefab
-    {
-        public string name;
-        public GameObject prefab;
-        public ushort id;
-    }
-    public string[] layouts = { "0,(4.37, 0.00, -2.91),(0.00000, 0.38268, 0.00000, 0.92388),(0.80, 0.80, 0.80)!0,(0.00, 0.00, 0.00),(0.00000, 0.00000, 0.00000, 1.00000),(1.00, 1.00, 1.00)!0,(4.65, -0.02, -0.07),(0.69159, -0.14731, 0.14731, 0.69159),(0.40, 0.40, 0.40)!1,(2.44, -1.09, 1.62),(-0.70711, 0.00000, 0.00000, 0.70711),(1.00, 1.00, 1.00)!" };
-
-    private void Start()
-    {
-        if (spawnOnStart) CreateLayout();
-    }
-
+    [SerializeField] private string layoutString;
+    [SerializeField] private LayoutGroup.objectPrefab[] prefabs;
     //Method that creates a layout
     public void CreateLayout()
     {
-        //Choose a random layout
-        int randomLayout = Random.Range(0, layouts.Length);
+        Debug.Log("Creating a layout... the string is " + layoutString);
         //Get the string array with all the objects
-        string[] objs = DeconstructString(layouts[randomLayout], "!");
+        string[] objs = DeconstructString(layoutString, "!");
         //Loop through for each object, disregard the last element because it will be blank
         for(int i = 0; i < objs.Length - 1; i++)
         {
@@ -109,7 +93,7 @@ public class RandomLayoutCreator : MonoBehaviour
     //Finds the id from the given transform
     private ushort GetPrefabId(Transform t)
     {
-        foreach (objectPrefab p in prefabs)
+        foreach (LayoutGroup.objectPrefab p in prefabs)
         {
             if (p.name == t.name)
             {
@@ -119,5 +103,11 @@ public class RandomLayoutCreator : MonoBehaviour
         }
         throw new NotImplementedException($"Object {t.name} isn't registed in the prefab list. Check if the names match exactly.");
         
+    }
+
+    public void SetLayoutValues(string _layoutString, LayoutGroup.objectPrefab[] _prefabs)
+    {
+        layoutString = _layoutString;
+        prefabs = _prefabs;
     }
 }

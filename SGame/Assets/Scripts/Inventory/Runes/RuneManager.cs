@@ -6,7 +6,7 @@ public class RuneManager : MonoBehaviour
 {
     [SerializeField] private Inventory inventory;
     [SerializeField] private Canvas canvas;
-    [SerializeField] private List<InventorySlot> slots;
+    [SerializeField] private List<ISInterface> slots;
     public static RuneManager instance;
     public Spell[] currentRuneSlotSpells;
     public bool[] slotHasSpell;
@@ -31,7 +31,7 @@ public class RuneManager : MonoBehaviour
             slots[i].updateSlotValues();
         }
     }
-    public InventorySlot GetSpellSlot(int index) {
+    public ISInterface GetSpellSlot(int index) {
         return slots[index];
     }
     public IEnumerator checkSlotsForSpells()
