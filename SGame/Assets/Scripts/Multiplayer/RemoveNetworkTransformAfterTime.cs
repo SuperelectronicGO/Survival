@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Netcode.Components;
-public class RemoveNetworkTransformAfterTime : MonoBehaviour
+public class RemoveNetworkTransformAfterTime : NetworkBehaviour
 {
     // Start is called before the first frame update
     private void Start()
