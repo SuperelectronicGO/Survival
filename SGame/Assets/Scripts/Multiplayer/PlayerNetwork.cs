@@ -28,7 +28,7 @@ public class PlayerNetwork : NetworkBehaviour
     [SerializeField] private WorldItemTextManager worldTextManager;
     [Header("World Gen References")]
     public bool hostFinishedGenerating = false;
-    private void Start()
+    private void Awake()
     {
         instance = this;
         /*Steamworks.Friend[] lobbyMembers = GameNetworkManager.Instance.GetCurrentPlayers();

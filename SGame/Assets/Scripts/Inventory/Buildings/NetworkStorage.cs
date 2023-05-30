@@ -2,29 +2,53 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
-
+using Unity.Collections;
 
 public class NetworkStorage : NetworkBehaviour
 {
     public int slotAmount = 18;
-    public NetworkVariable<ItemNetworkStruct[]> heldItems;
+    // public NetworkVariable<ItemNetworkStruct> heldItems;
+    public NetworkVariable<NetworkStorageItemWrapper> heldItems = new NetworkVariable<NetworkStorageItemWrapper>(new NetworkStorageItemWrapper(), NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
     bool spawned = false;
-    
     public override void OnNetworkSpawn()
     {
-        //On the server, create a new array. If we are not on the server, we don't want to be creating a new array because we will be hosting
-        heldItems = new NetworkVariable<ItemNetworkStruct[]>(new ItemNetworkStruct[slotAmount], NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        for(int i = 0; i< heldItems.Value.Length; i++)
+        if (IsHost)
         {
-            heldItems.Value[i] = new ItemNetworkStruct();
+            heldItems.Value = new NetworkStorageItemWrapper { items = new ItemNetworkStruct[slotAmount] };
+            for (int i = 0; i < slotAmount; i++)
+            {
+                heldItems.Value.items[i] = new ItemNetworkStruct
+                {
+                    type = Item.ItemType.Campfire,
+                    amount = 0,
+                    attributeNames = new ItemAttribute.AttributeName[0],
+                    attributeValues = new float[0],
+                    attributeInfo = new NetworkString512Bytes(),
+                    spellType = Spell.SpellType.None,
+                    spellAttributeTypes = new SpellAttribute.AttributeType[0],
+                    spellAttributeValues = new float[0]
+
+                };
+            }
         }
         spawned = true;
-    }
-    private void Update()
-    {
-        if (spawned)
+        heldItems.OnValueChanged += (NetworkStorageItemWrapper previousValue, NetworkStorageItemWrapper newValue) =>
         {
-            Debug.Log(heldItems.Value[0].type.ToString() + ", " + heldItems.Value[1].type.ToString());
+            if (StorageManager.instance.currentNetworkStorage == this)
+            {
+                StorageManager.instance.SetSlotValues();
+            }
+        };
+    }
+    [System.Serializable]
+    public struct NetworkStorageItemWrapper : INetworkSerializable
+    {
+        [NonReorderable]
+        public ItemNetworkStruct[] items;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref items);
         }
     }
     /// <summary>
@@ -34,6 +58,26 @@ public class NetworkStorage : NetworkBehaviour
     /// <param name="value">The ItemNetworkStruct value to set to</param>
     public void SetItem(int index, Item value)
     {
-        heldItems.Value[index] = value.ToStruct();
+        if (IsHost)
+        {
+            //  heldItems.Value[index] = value.ToStruct();
+            heldItems.Value.items[index] = value.ToStruct();
+            heldItems.SetDirty(true);
+        }
+        else
+        {
+            SetStorageItemServerRPC(index, value.ToStruct());
+        }
+    }
+    [ServerRpc(RequireOwnership = false)]
+    public void SetStorageItemServerRPC(int index, ItemNetworkStruct value)
+    {
+        heldItems.Value.items[index] = value;
+        heldItems.SetDirty(true);
+        if(StorageManager.instance.currentNetworkStorage == this)
+        {
+            StorageManager.instance.SetSlotValues();
+        }
     }
 }
+

@@ -72,10 +72,10 @@ public class StorageManager : MonoBehaviour
     /// </summary>
     public void SetSlotValues()
     {
-        for(int i = 0; i < currentNetworkStorage.heldItems.Value.Length; i++)
+        for(int i = 0; i < currentNetworkStorage.heldItems.Value.items.Length; i++)
         {
-            activeSlots[i].heldItem = currentNetworkStorage.heldItems.Value[i].ToClass();
-        }
+            activeSlots[i].heldItem = currentNetworkStorage.heldItems.Value.items[i].ToClass();
+       }
         RefreshSlotValues();
     }
 }

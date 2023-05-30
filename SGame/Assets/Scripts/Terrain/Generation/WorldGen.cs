@@ -177,14 +177,14 @@ public class WorldGen : NetworkBehaviour
         mapDemensions = new int2(1024, 1024);
 
         //Generate world on load if selected in menu and we are host
-        if (GameNetworkManager.Instance != null)
-        {
+      //  if (GameNetworkManager.Instance != null)
+       // {
             if (GameNetworkManager.Instance.generateWorld)
             {
                 if (!NetworkManager.Singleton.IsHost) return;
                 StartCoroutine(initialTerrainGeneration());
             }
-        }
+       // }
     }
     // Update is called once per frame
     void Update()
@@ -322,7 +322,7 @@ public class WorldGen : NetworkBehaviour
         {
             GetBuildingSpotList();
         }
-        while (num < tDatas.Count - 50)
+        while (num < tDatas.Count)
         {
 
             StartCoroutine(generateTerrainTile(terrains[num], terrainParents[num], num, new int2(Mathf.RoundToInt(terrains[num].transform.position.x / 1000), Mathf.RoundToInt(terrains[num].transform.position.z / 1000))));

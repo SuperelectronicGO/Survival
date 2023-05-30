@@ -449,12 +449,11 @@ public struct ItemNetworkStruct : INetworkSerializable
     //Attribute values
     public ItemAttribute.AttributeName[] attributeNames;
     public float[] attributeValues;
-    public FixedString512Bytes attributeInfo;
+    public NetworkString512Bytes attributeInfo;
     //Spell values
     public Spell.SpellType spellType;
     public SpellAttribute.AttributeType[] spellAttributeTypes;
     public float[] spellAttributeValues;
-    
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref type);
@@ -468,7 +467,27 @@ public struct ItemNetworkStruct : INetworkSerializable
        // if (attributeInfos == null) { throw new NullReferenceException(); }
         serializer.SerializeValue(ref attributeInfo);
     }
-   
+
+}
+[Serializable]
+public struct NetworkString512Bytes : INetworkSerializable, IEquatable<NetworkString512Bytes>
+{
+    private ForceNetworkSerializeByMemcpy<FixedString512Bytes> data;
+
+    public bool Equals(NetworkString512Bytes other)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref data);
+    }
+
+    public override string ToString() => data.Value.ToString();
+
+    public static implicit operator string(NetworkString512Bytes networkString) => networkString.ToString();
+    public static implicit operator NetworkString512Bytes(string s) => new NetworkString512Bytes { data = new FixedString512Bytes(s) };
 }
 [Serializable]
 public class ItemAttribute {
