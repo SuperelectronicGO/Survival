@@ -181,7 +181,7 @@ public class WorldGen : NetworkBehaviour
        // {
             if (GameNetworkManager.Instance.generateWorld)
             {
-                if (!NetworkManager.Singleton.IsHost) return;
+                //if (!NetworkManager.Singleton.IsHost) return;
                 StartCoroutine(initialTerrainGeneration());
             }
        // }
@@ -1959,6 +1959,8 @@ public class WorldGen : NetworkBehaviour
     {
         StartCoroutine(initialTerrainGeneration());
     }
+    //Server RPC that syncs the position, scale, and rotation of an object
+
 }
 [System.Serializable]
 public class BuildingData
