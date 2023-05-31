@@ -4,7 +4,6 @@ using UnityEngine;
 using Unity.Netcode;
 public class DroppedItem : NetworkBehaviour
 {
-    private bool constructed = false;
     //Item being held
     public Item item;
     //Server Item struct used to sync data between the server and the clients

@@ -110,7 +110,7 @@ public class GameNetworkManager : MonoBehaviour
             currentLobby.Value.SetData("name", lobbyName);
             currentLobby.Value.SetData("password", "amongus");
             //Random Key name and Value to only return lobbys that exist on this games network
-            Debug.Log(currentLobby.Value.Id);
+            Debug.Log($"Lobby Id is {currentLobby.Value.Id}");
 
         }
         else
@@ -256,12 +256,12 @@ public class GameNetworkManager : MonoBehaviour
     private IEnumerator UpdateCurrentLobbys()
     {
         yield break;
-        Request.OnChanges += OnServerUpdated;
+       /* Request.OnChanges += OnServerUpdated;
         while (true)
         {
             UpdateServerList();
             yield return new WaitForSeconds(60);
-        }
+        }*/
       
     }
     //Public void to update the server list

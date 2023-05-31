@@ -6,13 +6,7 @@ using Unity.Netcode;
 public class ItemSpawnStart : NetworkBehaviour
 {
     private Item item;
-    private bool recievedItemType = false;
-    public override void OnNetworkSpawn()
-    {
-        //On spawn, wait until the item is set, then create the values needed for this item, and destroy this script
-       // StartCoroutine(RunCreateDroppedItemOnValueSet());
-       
-    }
+    //private bool recievedItemType = false;
     public void RecieveItemType(Item recievedItem)
     {
         item = recievedItem;
@@ -21,13 +15,13 @@ public class ItemSpawnStart : NetworkBehaviour
         Destroy(this);
         
     }
-    private IEnumerator RunCreateDroppedItemOnValueSet()
+    /*private IEnumerator RunCreateDroppedItemOnValueSet()
     {
         yield return new WaitUntil(() => recievedItemType = true);
         CreateDroppedItem();
         Destroy(this);
         yield break;
-    }
+    }*/
     public void CreateDroppedItem()
     {
         //Find this items constructor

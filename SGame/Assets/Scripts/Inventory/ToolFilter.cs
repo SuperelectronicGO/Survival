@@ -6,7 +6,7 @@ public class ToolFilter : NetworkBehaviour
 {
    
     public ToolMesh[] tools;
-    public Camera camera;
+    public Camera playerCamera;
 
     public int currentDamage = 0;
  
@@ -26,12 +26,14 @@ public class ToolFilter : NetworkBehaviour
             }
         }
     }
-    //Method to use raycasts to detect a collision
+    /// <summary>
+    /// Uses a raycast to detect a collisions and runs functions based upon it
+    /// </summary>
     public void collisionExecution()
     {
         if (!IsOwner) return;
         RaycastHit hit;
-        Ray ray = camera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
 
         if (Physics.Raycast(ray, out hit, 3.5f))
         {
@@ -69,5 +71,13 @@ public class ToolFilter : NetworkBehaviour
         }
 
 
+    }
+    /// <summary>
+    /// Sets the camera of the tool filter
+    /// </summary>
+    /// <param name="cameraToSet">The camera reference to set as</param>
+    public void SetCamera(Camera cameraToSet)
+    {
+        playerCamera = cameraToSet;
     }
 }

@@ -12,7 +12,7 @@ public class PlayerNetworkStart : NetworkBehaviour
        if (IsOwner)
        {
            PlayerNetwork.instance.AssignPlayerStartValues(this.gameObject);
-           Debug.Log("Called value assign");
+           Debug.Log("[Setup] Player starting values assigned");
         }
   //      Destroy(this);
 

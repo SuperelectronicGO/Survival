@@ -6,7 +6,7 @@ using UnityEngine;
 [System.Serializable]
 public class ObjectScriptable : ScriptableObject
 {
-    public string name;
+    public new string name;
     public enum typeOfObject
     {
         Tree,

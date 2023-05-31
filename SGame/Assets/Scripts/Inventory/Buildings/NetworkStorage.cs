@@ -6,10 +6,11 @@ using Unity.Collections;
 
 public class NetworkStorage : NetworkBehaviour
 {
+    //How many slots this chest has
     public int slotAmount = 18;
-    // public NetworkVariable<ItemNetworkStruct> heldItems;
+    //List of held items
     public NetworkVariable<NetworkStorageItemWrapper> heldItems = new NetworkVariable<NetworkStorageItemWrapper>(new NetworkStorageItemWrapper(), NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-    bool spawned = false;
+    //bool spawned = false;
     public override void OnNetworkSpawn()
     {
         if (IsHost)
@@ -31,7 +32,7 @@ public class NetworkStorage : NetworkBehaviour
                 };
             }
         }
-        spawned = true;
+        //spawned = true;
         heldItems.OnValueChanged += (NetworkStorageItemWrapper previousValue, NetworkStorageItemWrapper newValue) =>
         {
             if (StorageManager.instance.currentNetworkStorage == this)
@@ -40,6 +41,8 @@ public class NetworkStorage : NetworkBehaviour
             }
         };
     }
+
+    //Wrapper class for the list of held items
     [System.Serializable]
     public struct NetworkStorageItemWrapper : INetworkSerializable
     {
@@ -55,7 +58,7 @@ public class NetworkStorage : NetworkBehaviour
     /// Sets an item in the list of held items
     /// </summary>
     /// <param name="index">The index of the value to set</param>
-    /// <param name="value">The ItemNetworkStruct value to set to</param>
+    /// <param name="value">The Item value to set to</param>
     public void SetItem(int index, Item value)
     {
         if (IsHost)
@@ -69,6 +72,11 @@ public class NetworkStorage : NetworkBehaviour
             SetStorageItemServerRPC(index, value.ToStruct());
         }
     }
+    /// <summary>
+    /// Server RPC that does the same as SetItem, called on the client
+    /// </summary>
+    /// <param name="index">The index of the value to set</param>
+    /// <param name="value">The ItemNetworkStruct value to set to</param>
     [ServerRpc(RequireOwnership = false)]
     public void SetStorageItemServerRPC(int index, ItemNetworkStruct value)
     {

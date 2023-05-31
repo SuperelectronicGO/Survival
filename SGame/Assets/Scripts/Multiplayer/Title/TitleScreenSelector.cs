@@ -155,9 +155,19 @@ public class TitleScreenSelector : MonoBehaviour
     //Public void to update the player list
     public void SetPlayerList(Steamworks.Friend[] members)
     {
+        //Return if null because of scene loading
+        if (playerListAnchor == null) return;
+        //Create new list of children
+        GameObject[] children = new GameObject[playerListAnchor.transform.childCount];
+        //Add existing children to list
         for(int i=0; i<playerListAnchor.transform.childCount; i ++)
         {
-            Destroy(playerListAnchor.transform.GetChild(i).gameObject);
+            children[i] = playerListAnchor.transform.GetChild(i).gameObject;
+        }
+        //Destroy children
+        foreach(GameObject child in children)
+        {
+            Destroy(child);
         }
         for(int i=0; i<members.Length; i++)
         {

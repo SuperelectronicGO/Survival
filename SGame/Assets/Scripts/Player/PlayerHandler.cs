@@ -53,7 +53,6 @@ public class PlayerHandler : NetworkBehaviour
     {
         if (IsOwner)
         {
-            Debug.Log("Is owner");
             StartCoroutine(CheckLockConditions());
         }
         //Subscrive to the currentItemNetworkStruct changed event

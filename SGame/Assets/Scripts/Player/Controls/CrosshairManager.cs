@@ -97,7 +97,6 @@ public class CrosshairManager : NetworkBehaviour
     }
     public void ChangeCrosshairOnItem(Item item)
     {
-        Debug.Log(item.spell.type.ToString());
         switch (item.spell.type)
         {
             case Spell.SpellType.Fireball:

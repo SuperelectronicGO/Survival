@@ -2,8 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-
-public class WeaponSway : MonoBehaviour
+using Unity.Netcode;
+public class WeaponSway : NetworkBehaviour
 {
 
     [Header("Tilt")]
@@ -19,23 +19,31 @@ public class WeaponSway : MonoBehaviour
     Vector3 initialPosition;
     Quaternion initialRotation;
     [Header("Components")]
-    [SerializeField] private GameObject camera;
+    [SerializeField] private GameObject playerCamera;
     private float sensitivity;
-    // Start is called before the first frame update
+    // Start sets initial values
     void Start()
+    {
+        if (!IsOwner) Destroy(this);
+    }
+    /// <summary>
+    /// Sets the intial rotation, position, and sensitivity of the sway after the camera has been assigned
+    /// </summary>
+    private void SetInitialValues()
     {
         initialRotation = transform.localRotation;
         initialPosition = transform.localPosition;
-        sensitivity = camera.GetComponent<MouseLook>().mouseSensitivity;
+        sensitivity = playerCamera.GetComponent<MouseLook>().mouseSensitivity;
     }
-
-    // Update is called once per frame
-    
+    //Update calls tilt and rotation
     void Update()
     {
         TiltSway();
         RotationSway();
     }
+    /// <summary>
+    /// Sways the current item by the input of the mouse axis
+    /// </summary>
     private void TiltSway()
     {
         float moveX = Input.GetAxis("Mouse X") * amount * sensitivity;
@@ -45,6 +53,9 @@ public class WeaponSway : MonoBehaviour
         Vector3 finalPos = new Vector3(-moveX, 0, moveY);
         transform.localPosition = Vector3.Lerp(transform.localPosition, finalPos + initialPosition, Time.deltaTime * smoothAmount);
     }
+    /// <summary>
+    /// Rotates the current item by the inuput of the mouse axis
+    /// </summary>
     private void RotationSway()
     {
         float tiltX = Input.GetAxis("Mouse X") * tiltAmount * sensitivity;
@@ -53,5 +64,14 @@ public class WeaponSway : MonoBehaviour
         tiltX = Mathf.Clamp(tiltX, -maxTiltSway, maxTiltSway);
         Quaternion finalRotation = Quaternion.Euler(new Vector3(-tiltX, tiltY, tiltY));
         transform.localRotation = Quaternion.Slerp(transform.localRotation, finalRotation * initialRotation, Time.deltaTime * smoothAmountTilt);
+    }
+    /// <summary>
+    /// Sets the camera to use for sensitivity
+    /// </summary>
+    /// <param name="cameraToSet">The camera gameobject reference</param>
+    public void SetCamera(GameObject cameraToSet)
+    {
+        playerCamera = cameraToSet;
+        SetInitialValues();
     }
 }

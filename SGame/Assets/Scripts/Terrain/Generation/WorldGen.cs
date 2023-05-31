@@ -11,10 +11,11 @@ using Unity.Netcode;
 using Random = UnityEngine.Random;
 public class WorldGen : NetworkBehaviour
 {
-
+    [Header("Testing stuff")]
     public bool testing;
+    public GameObject spawnCam;
     List<Material> blendMats = new List<Material>();
-
+    public GameObject testingNetworkManager;
 
 
     public static WorldGen instance { get; private set; }
@@ -49,7 +50,6 @@ public class WorldGen : NetworkBehaviour
     #endregion
 
     [Header("Data")]
-    private bool generateOnLoad = false;
     //Player reference
     [SerializeField] private Transform player;
     //Terrain material
@@ -99,7 +99,7 @@ public class WorldGen : NetworkBehaviour
     [NonReorderable]
     public List<BuildingData> buildings = new List<BuildingData>();
 
-    #region temporary data (voronoi)
+    #region Temporary data (voronoi)
     private bool voronoiFinishCompletion = false;
     #endregion
 
@@ -177,14 +177,33 @@ public class WorldGen : NetworkBehaviour
         mapDemensions = new int2(1024, 1024);
 
         //Generate world on load if selected in menu and we are host
-      //  if (GameNetworkManager.Instance != null)
-       // {
+        //  if (GameNetworkManager.Instance != null)
+        // {
+        if (testingNetworkManager.activeInHierarchy) return;
             if (GameNetworkManager.Instance.generateWorld)
             {
                 //if (!NetworkManager.Singleton.IsHost) return;
                 StartCoroutine(initialTerrainGeneration());
-            }
+        }
+        else
+        {
+            StartCoroutine(TestSpawner());
+        }
        // }
+    }
+    private IEnumerator TestSpawner()
+    {
+        for(int i=0; i<6; i++)
+        {
+            Debug.LogWarning($"Spawning in {6 - i}");
+            yield return new WaitForSecondsRealtime(1);
+        }
+        genScreen.gameObject.SetActive(false);
+        
+        PlayerNetwork.instance.SpawnPlayerTest();
+        yield return new WaitForSecondsRealtime(2.5f);
+        spawnCam.SetActive(false);
+        yield break;
     }
     // Update is called once per frame
     void Update()
@@ -230,7 +249,6 @@ public class WorldGen : NetworkBehaviour
             else
             {
                 orderInWorldGeneration = 1;
-                Debug.Log("Skipped mapmagic generation");
             }
 
         }
@@ -253,16 +271,6 @@ public class WorldGen : NetworkBehaviour
         //Debug.Log("Generated river components");
         //orderInWorldGeneration = 2;
 
-
-    }
-
-
-    public void startGen()
-    {
-        seed = Random.Range(0, 100000);
-        M_Graph.graph.random = new Den.Tools.Noise(seed, 32768);
-        M_Graph.Refresh();
-        startedMapmagicWorldGeneration = true;
 
     }
 
@@ -629,13 +637,8 @@ public class WorldGen : NetworkBehaviour
         List<TerrainLayer> tileLayers = new List<TerrainLayer>();
         NativeArray<float3> voronoiMap = new NativeArray<float3>(1025 * 1025, Allocator.Persistent);
         // * * * * * Detail generation references * * * * * \\
-
-        //Reference to the GPUI detail prototype
-        GPUInstancerDetailPrototype currentDetailPrototype = null;
         //List of detail prototypes for this terrain
         List<DetailPrototype> terrainDetailPrototypes = new List<DetailPrototype>();
-
-
         // * * * * * Object generation references * * * * * \\
         //Array storing the heightmap that we want to change
         float[,] terrainObjectHeightmap = tDatas[tileNumber].GetHeights(0, 0, terrainHeightmapLength, terrainHeightmapLength);
@@ -664,6 +667,9 @@ public class WorldGen : NetworkBehaviour
         int maxWeightAmnt = 0;
         //Value to store the normals of the terrain
         Vector3 spotNormal = new Vector3();
+        //Add the TileObjectList to the tile and cache it
+        TileObjectList tileObjectList = terrain.gameObject.AddComponent<TileObjectList>();
+            
         // * * * * * Before Generation Setup * * * * * \\
 
         //Log this tile in the terrain tile biome list
@@ -912,8 +918,6 @@ public class WorldGen : NetworkBehaviour
 
             }
 
-            //Set the map
-            float splatAmount = 0;
             for (int y = 0; y < pixelsSetPerStrip; y++)
             {
 
@@ -1233,10 +1237,6 @@ public class WorldGen : NetworkBehaviour
 
         #endregion
 
-        #region large objects and buildings
-
-        #endregion
-
         #region Objects
         /* Only run this if we are the host/server */
         if (NetworkManager.Singleton.IsHost)
@@ -1422,6 +1422,8 @@ public class WorldGen : NetworkBehaviour
                                 spawnedObject.transform.localScale = new Vector3(newObjectScale * selectedOb.scaleMultiplier.x, newObjectScale * selectedOb.scaleMultiplier.y, newObjectScale * selectedOb.scaleMultiplier.z);
                                 //Name the object
                                 spawnedObject.name = selectedOb.name;
+                                //Add the object to the terrains object list
+                                tileObjectList.objectList.Add(spawnedObject);
                             }
 
                         }
@@ -1446,11 +1448,17 @@ public class WorldGen : NetworkBehaviour
             InTerra.InTerra_Data.UpdateTerrainData(true);
         }
         #endregion
-        voronoiMap.Dispose();
-        genScreen.genAmount += 1;
-        genScreen.RefreshGenerationUI();
-        moveNext = true;
 
+        #region cleanup and incrementation
+        //Dispose of voronoi map
+        voronoiMap.Dispose();
+        //Increase the generation screen count by one
+        genScreen.genAmount += 1;
+        //Refresh the UI of the generation screen
+        genScreen.RefreshGenerationUI();
+        //Set moveNext to true to move to the next tile
+        moveNext = true;
+        #endregion
         yield break;
     }
 

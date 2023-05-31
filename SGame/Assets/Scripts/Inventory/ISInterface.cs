@@ -42,7 +42,6 @@ public class ISInterface : MonoBehaviour
         defaultColor = backgroundImage.color;
         button_UI = GetComponent<Button_UI>();
         canvas = inventory.canvas;
-        Debug.Log("Ran for slot");
     }
 
     public void Update()

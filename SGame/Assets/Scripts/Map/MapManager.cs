@@ -15,7 +15,6 @@ public class MapManager : MonoBehaviour
     public List<mapPanel> islandPanels = new List<mapPanel>();
     private string selectedIslandString;
     [SerializeField] private GameObject selectedIsland;
-    private bool inRangeOfIsland = false;
     private GameObject activePanel;
 
     // Start is called before the first frame update
@@ -184,27 +183,6 @@ public class MapManager : MonoBehaviour
         
     }
     
-    private void checkIslandRange()
-    {
-         
-            Vector3 camPos = mapCamera.transform.position;
-    camPos.y = 0;
-            Vector3 islandPos = selectedIsland.transform.position;
-    islandPos.y = 0;
-            float distAmnt = Vector3.Distance(camPos, islandPos);
-            if (distAmnt > 0 && distAmnt< 60)
-            {
-                //Do nothing - we are within range
-                inRangeOfIsland = true;
-            }
-            else
-{
-    //out of range
-    inRangeOfIsland = false;
-}
-        
-    }
-   
     
 }
 
