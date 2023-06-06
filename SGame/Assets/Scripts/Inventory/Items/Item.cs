@@ -4,6 +4,8 @@ using UnityEngine;
 using System;
 using Unity.Collections;
 using Unity.Netcode;
+using Unity.Mathematics;
+
 [Serializable]
 
 public class Item
@@ -301,18 +303,6 @@ public class Item
         return 0;
       
     }
-    public string getAttributeString(ItemAttribute.AttributeName attribute)
-    {
-        foreach(ItemAttribute a in attributes)
-        {
-            if (a.attribute == attribute)
-            {
-                return a.info;
-            }
-        }
-        Debug.LogError("No attribute of string type found");
-        return "Missing";
-    }
     public void setAttributeValue(ItemAttribute.AttributeName attribute, float value, string modifier)
     {
 
@@ -348,112 +338,21 @@ public class Item
     }
 
 }
-//Class holding Item conversions to structs, and vice versa
-public static class ItemConversion{
-    ///<summary>
-    ///Method that takes an Item class and returns it as a struct
-    ///</summary>
-    ///<returns> A copy of the class in struct form</returns>
-    public static ItemNetworkStruct ToStruct(this Item source)
-    {
-        if (source == null) throw new NullReferenceException("Attempting to convert a null object");
-        //Keep this - otherwise spell is null if its not a rune
-        if (source.spell == null)
-        {
-            source.spell = new Spell();
-        }
-        //Define a new itemStruct
-
-        ItemNetworkStruct itemStruct = new ItemNetworkStruct
-        {
-            type = source.itemType,
-            amount = source.amount,
-            attributeNames = new ItemAttribute.AttributeName[source.attributes.Count],
-            attributeValues = new float[source.attributes.Count],
-            attributeInfo = "",
-            spellType = new Spell.SpellType(),
-            spellAttributeTypes = new SpellAttribute.AttributeType[source.spell.attributes.Count],
-            spellAttributeValues = new float[source.spell.attributes.Count]
-        };
-
-
-
-        //Copy over item attribute values
-        for (int i = 0; i < source.attributes.Count; i++)
-        {
-            itemStruct.attributeNames[i] = source.attributes[i].attribute;
-            itemStruct.attributeValues[i] = source.attributes[i].value;
-            string addedString = source.attributes[i].info + " <end> ";
-            if ((itemStruct.attributeInfo + addedString).Length > 511) { throw new IndexOutOfRangeException("Attribute '" + source.attributes[i].attribute.ToString() + "' exceeds the 512 byte limit"); }
-            itemStruct.attributeInfo += addedString;
-
-        }
-        //Copy over spell values
-        itemStruct.spellType = source.spell.type;
-        for (int i = 0; i < source.spell.attributes.Count; i++)
-        {
-            itemStruct.spellAttributeTypes[i] = source.spell.attributes[i].attribute;
-            itemStruct.spellAttributeValues[i] = source.spell.attributes[i].value;
-        }
-        return itemStruct;
-    }
-    ///<summary>
-    ///Method that takes an Item struct and returns it as a class
-    ///</summary>
-    ///<returns>A copy of the struct in class form</returns>
-    public static Item ToClass(this ItemNetworkStruct source)
-    {
-        Item item = new Item();
-        item.itemType = source.type;
-        item.amount = source.amount;
-        item.attributes = new List<ItemAttribute>();
-        item.spell = new Spell();
-        item.spell.type = source.spellType;
-        //Copy item attributes from the struct
-        string[] attributeInfos = source.attributeInfo.ToString().Split(new String[] { " <end> " }, StringSplitOptions.None);
-        //Copy over Item and Spell attributes if their corresponding arrays are not null.
-        if (source.attributeNames != null)
-        {
-            for (int i = 0; i < source.attributeNames.Length; i++)
-            {
-                item.attributes.Add(new ItemAttribute
-                {
-                    attribute = source.attributeNames[i],
-                    value = source.attributeValues[i],
-                    info = attributeInfos[i]
-                });
-            }
-        }
-        //Copy spell attributes from the struct
-        item.spell.attributes = new List<SpellAttribute>();
-        if (source.spellAttributeTypes != null)
-        {
-            for (int i = 0; i < source.spellAttributeTypes.Length; i++)
-            {
-
-                item.spell.attributes.Add(new SpellAttribute
-                {
-                    attribute = source.spellAttributeTypes[i],
-                    value = source.spellAttributeValues[i]
-                });
-            }
-        }
-        return item;
-    }
-}
 [Serializable]
 public struct ItemNetworkStruct : INetworkSerializable
 {
-    public Item.ItemType type;
-    public int amount;
-    //Attribute values
-    public ItemAttribute.AttributeName[] attributeNames;
-    public float[] attributeValues;
-    public NetworkString512Bytes attributeInfo;
-    //Spell values
-    public Spell.SpellType spellType;
-    public SpellAttribute.AttributeType[] spellAttributeTypes;
-    public float[] spellAttributeValues;
+    //Item type ID
+    public short type;
+    //Item amount
+    public byte amount;
+    //Each bit represents if an attribute is held
+    public ushort attributeNames;
+    //NetworkHalf is a wrapper class for Unity.Mathematics.half that forces network serialization
+    public NetworkHalf[] attributeValues;
+    //Type of spell attatched to Item
+    public byte spellType;
+    public ushort spellAttributeTypes;
+    public NetworkHalf[] spellAttributeValues;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref type);
@@ -463,9 +362,6 @@ public struct ItemNetworkStruct : INetworkSerializable
         serializer.SerializeValue(ref spellType);
         serializer.SerializeValue(ref spellAttributeTypes);
         serializer.SerializeValue(ref spellAttributeValues);
-        //Check to make sure value isn't null as we are using unmanaged types
-       // if (attributeInfos == null) { throw new NullReferenceException(); }
-        serializer.SerializeValue(ref attributeInfo);
     }
 
 }
@@ -490,6 +386,21 @@ public struct NetworkString512Bytes : INetworkSerializable, IEquatable<NetworkSt
     public static implicit operator NetworkString512Bytes(string s) => new NetworkString512Bytes { data = new FixedString512Bytes(s) };
 }
 [Serializable]
+public struct NetworkHalf : INetworkSerializable, IEquatable<NetworkHalf>
+{
+    public ForceNetworkSerializeByMemcpy<half> data;
+    public bool Equals(NetworkHalf other)
+    {
+        throw new NotImplementedException();
+    }
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref data);
+    }
+    public static implicit operator NetworkHalf(half s) => new NetworkHalf { data = new half(s) };
+    public static implicit operator NetworkHalf(float s) => new NetworkHalf { data = new half(s) };
+}
+[Serializable]
 public class ItemAttribute {
 
     public enum AttributeName
@@ -505,7 +416,6 @@ public class ItemAttribute {
     }
     public AttributeName attribute;
     public float value;
-    public string info;
 
 }
 

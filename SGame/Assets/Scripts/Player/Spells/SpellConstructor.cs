@@ -8,7 +8,24 @@ public class SpellConstructor : NetworkBehaviour
     GameObject graphics;
     public override void OnNetworkSpawn()
     {
-        //Debug.Log(spell.type);
+       
+       
+    }
+    /// <summary>
+    /// Coroutine that waits 0.1 seconds to enable the trail so it doesn't flash in the players face
+    /// </summary>
+    /// <returns></returns>
+    private IEnumerator DelayTrailEnable()
+    {
+        yield return new WaitForSecondsRealtime(0.1f);
+        graphics.transform.GetChild(0).gameObject.SetActive(true);
+        yield break;
+    }
+    /// <summary>
+    /// Constructs the spell depending on the type. Clients construct graphics while the server constructs the entire spell
+    /// </summary>
+    private void ConstructSpell()
+    {
         switch (spell.Value.type)
         {
             case Spell.SpellType.Fireball:
@@ -29,13 +46,12 @@ public class SpellConstructor : NetworkBehaviour
                 {
                     gameObject.AddComponent<SphereCollider>();
                     gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.fireballConstructor.colliderRadius;
+                    gameObject.AddComponent<ServerFireballSpellLogic>();
+                    gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
                     Rigidbody r = gameObject.AddComponent<Rigidbody>();
                     r.isKinematic = false;
                     r.useGravity = true;
                     r.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                    gameObject.AddComponent<ServerFireballSpellLogic>();
-                    gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
-
 
                 }
                 break;
@@ -57,22 +73,25 @@ public class SpellConstructor : NetworkBehaviour
                 {
                     gameObject.AddComponent<SphereCollider>();
                     gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.voidFireballConstructor.colliderRadius;
+                    gameObject.AddComponent<ServerFireballSpellLogic>();
+                    gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
                     Rigidbody r = gameObject.AddComponent<Rigidbody>();
                     r.isKinematic = false;
                     r.useGravity = true;
                     r.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                    gameObject.AddComponent<ServerFireballSpellLogic>();
-                    gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
-
 
                 }
                 break;
         }
     }
-    private IEnumerator DelayTrailEnable()
+    /// <summary>
+    /// Spawns the spell
+    /// </summary>
+    /// <param name="spellReference">The spell to spawn with</param>
+    public void SpawnSpell(SpellNetworkStruct spellReference)
     {
-        yield return new WaitForSecondsRealtime(0.1f);
-        graphics.transform.GetChild(0).gameObject.SetActive(true);
-        yield break;
+        GetComponent<NetworkObject>().Spawn();
+        spell.Value = spellReference;
+        ConstructSpell();
     }
 }

@@ -20,14 +20,13 @@ public class NetworkStorage : NetworkBehaviour
             {
                 heldItems.Value.items[i] = new ItemNetworkStruct
                 {
-                    type = Item.ItemType.Campfire,
+                    type = 0,
                     amount = 0,
-                    attributeNames = new ItemAttribute.AttributeName[0],
-                    attributeValues = new float[0],
-                    attributeInfo = new NetworkString512Bytes(),
-                    spellType = Spell.SpellType.None,
-                    spellAttributeTypes = new SpellAttribute.AttributeType[0],
-                    spellAttributeValues = new float[0]
+                    attributeNames = 0,
+                    attributeValues = new NetworkHalf[0],
+                    spellType = 0,
+                    spellAttributeTypes = 0,
+                    spellAttributeValues = new NetworkHalf[0]
 
                 };
             }

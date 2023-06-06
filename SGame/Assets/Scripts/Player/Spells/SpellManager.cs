@@ -33,6 +33,7 @@ public class SpellManager : NetworkBehaviour
     //When we load in, if we are not the owner of this object, and it has a spell equipped, spawn its graphics
     private void Start()
     {
+        //Spawns spell graphics upon connection if applicable
         if (!IsOwner)
         {
             if (GetComponent<PlayerHandler>().currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
@@ -53,7 +54,6 @@ public class SpellManager : NetworkBehaviour
             }
         }
     }
-
     // Update is called once per frame
     void Update()
     {
@@ -89,12 +89,19 @@ public class SpellManager : NetworkBehaviour
             #endregion
         }
     }
-    //Method to re-equip the last slot after a spell is finished
+
+    #region General functions
+    /// <summary>
+    /// Method that re-equips the last used item after a spell has been used
+    /// </summary>
     public void ReEquipLastItem()
     {
         hotbarManager.ReSelectSlot();
     }
-    //Method to check if we have a spell rune with the correct index
+    /// <summary>
+    /// Method that checks if a spell rune exists to use at the given idnex
+    /// </summary>
+    /// <param name="index">The index to check for a rune</param>
     public void CheckForSpellEquip(int index)
     {
         for(int i=0; i < currentSpells.Count; i++)
@@ -105,7 +112,10 @@ public class SpellManager : NetworkBehaviour
             }
         }
     }
-    //Method handling the different values when equipping spells
+    /// <summary>
+    /// Method that equips a spell depending on the type. Adds a itemBlocker to the player.
+    /// </summary>
+    /// <param name="spell">The type of spell to equip</param>
     public void EquipSpell(Spell spell)
     {
         GameObject g;
@@ -116,13 +126,14 @@ public class SpellManager : NetworkBehaviour
                 //Make sure anchor position is 0,0,0
                 spellAnchor.localPosition = Vector3.zero;
                 g = Instantiate(SpellAssets.instance.HeldFireballSpell, spellAnchor.position, Quaternion.identity, spellAnchor);
-                g.GetComponent<FireballSpellLogic>().spell = spell;
-                g.GetComponent<FireballSpellLogic>().timeBeforeCast = spell.getAttributeValue(SpellAttribute.AttributeType.summonTime);
+                FireballSpellLogic spellLogicReference = g.GetComponent<FireballSpellLogic>();
+                spellLogicReference.spell = spell;
+                spellLogicReference.timeBeforeCast = spell.getAttributeValue(SpellAttribute.AttributeType.summonTime);
+                spellLogicReference.SetItemBlocker("Fireball");
                 //If the activation index was one of the three keys tied to runes, set the rune slot as the active player slot so we don't use tools as well
                 player.SetActiveSlot(RuneManager.instance.GetSpellSlot(spell.spellActivationIndex));
                 //Deselect all hotbar slots
                 hotbarManager.DeselectAllSlots();
-                
                 AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(spell), GetComponent<NetworkObject>());
                 return;
             case Spell.SpellType.VoidFireball:
@@ -171,38 +182,53 @@ public class SpellManager : NetworkBehaviour
         }
        
     }
+    #endregion
 
-    #region setup functions
+    #region Setup functions
+    /// <summary>
+    /// Method that sets the HotbarManager of the SpellManager
+    /// </summary>
+    /// <param name="manager">The HotbarManager reference</param>
     public void setHotbarManager(HotbarManager manager)
     {
         hotbarManager = manager;
     }
+    /// <summary>
+    /// Method that sets the PlayerHandler of the SpellManager
+    /// </summary>
+    /// <param name="handler">The PlayerManager reference</param>
     public void setPlayer(PlayerHandler handler)
     {
         player = handler;
     }
     #endregion
 
-    #region network RPCs
+    #region Network RPCs
+    /// <summary>
+    /// ServerRPC that asks the server to throw the spell
+    /// </summary>
+    /// <param name="originalPosition">The position the spell is at when thrown</param>
+    /// <param name="spell">The type of spell being thrown</param>s
+    /// <param name="throwDirection">The direction the spell should travel in</param>
+    /// <param name="force">The amount of force to throw the spell with</param>
     [ServerRpc]
-    //Method that spawns a spell on the server
     public void ThrowSpellServerRPC(Vector3 originalPosition, SpellNetworkStruct spell, Vector3 throwDirection, float force)
     {
         //Instantiate the spell template and spawn it
         GameObject g = Instantiate(SpellAssets.instance.spellTemplate, new Vector3(originalPosition.x, originalPosition.y, originalPosition.z), Quaternion.identity);
-        g.GetComponent<SpellConstructor>().spell.Value = spell;
-        g.GetComponent<NetworkObject>().Spawn(true);
-        //Allow the spell to be affected by gravity
-        g.GetComponent<Rigidbody>().isKinematic = false;
-        //Enable the collider on the spell
-        g.GetComponent<SphereCollider>().enabled = true;
+        g.GetComponent<SpellConstructor>().SpawnSpell(spell);
         //Enable the first child - it should be the trail component
         g.transform.GetChild(0).gameObject.SetActive(true);
         //Set the property of the shader graph to show its been thrown
         g.transform.GetChild(0).GetComponent<ModifiyVFXGraphProperty>().SendVFXGraphEvent("Detatch");
         g.GetComponent<Rigidbody>().AddForce(throwDirection * force, ForceMode.Force);
     }
-    //ClientRpc that spawns the graphics of the spell
+    /// <summary>
+    /// ClientRPC that spawns the spell graphics before being thrown on the client
+    /// </summary>
+    /// <param name="senderId">The network Id of the player spawning the spell</param>
+    /// <param name="spellStruct">The spell being spawned</param>
+    /// <param name="playerObject">The player object to spawn the spell on</param>
     [ClientRpc]
     public void SpawnSpellGraphicsClientRPC(ulong senderId, SpellNetworkStruct spellStruct, NetworkObjectReference playerObject)
     {
@@ -232,13 +258,22 @@ public class SpellManager : NetworkBehaviour
         
         
     }
-    //ServerRpc that runs SpawnSpellGraphicsClientRPC
+    /// <summary>
+    /// The ServerRPC that runs the Spawn Spell Graphics Client RPC
+    /// </summary>
+    /// <param name="senderId">The network Id of the player spawning the spell</param>
+    /// <param name="spellStruct">The spell being spawned</param>
+    /// <param name="playerObject">The player object to spawn the spell on</param>
     [ServerRpc(RequireOwnership = false)]
     public void AskServerSpawnSpellGraphicsServerRPC(ulong senderId, SpellNetworkStruct spellStruct, NetworkObjectReference playerObject)
     {
         SpawnSpellGraphicsClientRPC(senderId, spellStruct, playerObject);
     }
-    //ClientRpc that destroys the graphics of the spell
+    /// <summary>
+    /// Client RPC that destroys the graphics of a spell when thrown
+    /// </summary>
+    /// <param name="senderId">The network Id of the player throwing the spell</param>
+    /// <param name="playerObject">The player object that houses the spell graphics</param>
     [ClientRpc]
     public void DestroySpellGraphicsClientRPC(ulong senderId, NetworkObjectReference playerObject)
     {
@@ -250,13 +285,22 @@ public class SpellManager : NetworkBehaviour
             }
         }
     }
-    //ServerRPC that runs DestroySpellGraphicsClientRPC
+    /// <summary>
+    /// Server RPC that runs the DestroySpellGraphics Client RPC
+    /// </summary>
+    /// <param name="senderId">The network Id of the player throwing the spell</param>
+    /// <param name="playerObject">The player obhect that houses the spell graphics</param>
     [ServerRpc(RequireOwnership = false)]
     public void AskServerDestroySpellGraphicsServerRPC(ulong senderId, NetworkObjectReference playerObject)
     {
         DestroySpellGraphicsClientRPC(senderId, playerObject);
     }
-    //ClientRPC that spawns a death effect for the spell
+    /// <summary>
+    /// Client RPC that spawns a spell death effect
+    /// </summary>
+    /// <param name="spawnPosition">The position to spawn the effect at</param>
+    /// <param name="spawnRotation">The rotation to spawn the effect at</param>
+    /// <param name="effectIndex">The index of the effect in the array of death effects</param>
     [ClientRpc]
     public void SpawnSpellDeathEffectClientRPC(Vector3 spawnPosition, Quaternion spawnRotation, int effectIndex)
     {
@@ -264,6 +308,11 @@ public class SpellManager : NetworkBehaviour
     }
     #endregion
 }
+
+#region Class/Struct data
+/// <summary>
+/// The spell class containing data about the spell
+/// </summary>
 [System.Serializable]
 public class Spell
 {
@@ -352,6 +401,9 @@ public class Spell
     }
 
 }
+/// <summary>
+/// Class that can be used to apply modifiers/additional data to a spell
+/// </summary>
 [System.Serializable]
 public class SpellAttribute{
      public enum AttributeType
@@ -365,7 +417,9 @@ public class SpellAttribute{
     public float value;
 }
 
-//Spell class in a network form so it can be serialized and sent in a RPC.
+/// <summary>
+/// Spell class in struct form so it can be used over the network
+/// </summary>
 [System.Serializable]
 public struct SpellNetworkStruct : INetworkSerializable
 {
@@ -380,5 +434,5 @@ public struct SpellNetworkStruct : INetworkSerializable
         serializer.SerializeValue(ref attributeValues);
     }
 }
-
+#endregion
 

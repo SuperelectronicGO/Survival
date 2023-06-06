@@ -560,7 +560,7 @@ MonoBehaviour:
   tools:
   - {fileID: 1238437014816786446}
   - {fileID: 1093519834691202803}
-  camera: {fileID: 3742316971420711427}
+  playerCamera: {fileID: 0}
   currentDamage: 0
 --- !u!114 &4593971648043156244
 MonoBehaviour:
@@ -628,7 +628,7 @@ MonoBehaviour:
   tiltAmount: 2
   maxTiltSway: 3
   smoothAmountTilt: 10
-  camera: {fileID: 3742316971420711425}
+  playerCamera: {fileID: 0}
 --- !u!1 &3742316971990734677
 GameObject:
   m_ObjectHideFlags: 0
@@ -856,6 +856,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   GlobalObjectIdHash: 951099334
   AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
 --- !u!114 &5382117105284265680
@@ -894,8 +897,12 @@ MonoBehaviour:
   PositionThreshold: 0.001
   RotAngleThreshold: 0.01
   ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
   InLocalSpace: 0
   Interpolate: 1
+  SlerpPosition: 0
 --- !u!54 &3489637343699009444
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1010,7 +1017,7 @@ MonoBehaviour:
   BonusOrientationMethod: 0
   BonusOrientationSharpness: 0
   Gravity: {x: 0, y: -30, z: 0}
-  MeshRoot: {fileID: 3742316971855535641}
+  MeshRoot: {fileID: 9140980337770297854}
   CrouchedCapsuleHeight: 1
 --- !u!1 &3742316972574352931
 GameObject:

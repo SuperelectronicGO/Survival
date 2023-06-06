@@ -28,22 +28,13 @@ public class PlayerNetwork : NetworkBehaviour
     [SerializeField] private WorldItemTextManager worldTextManager;
     [Header("World Gen References")]
     public bool hostFinishedGenerating = false;
+
+
+
+    //Awake method sets instance
     private void Awake()
     {
-        instance = this;
-        /*Steamworks.Friend[] lobbyMembers = GameNetworkManager.Instance.GetCurrentPlayers();
-        for(int i=0; i<lobbyMembers.Length; i++)
-        {
-            if (lobbyMembers[i].Id == Steamworks.SteamClient.SteamId)
-            {
-
-            }
-        }*/
-
-        // SpawnPlayerServerRPC(NetworkManager.Singleton.LocalClientId);
-        
-            
-             
+        instance = this;  
     }
     /// <summary>
     /// Spawns the player and runs necessary logic

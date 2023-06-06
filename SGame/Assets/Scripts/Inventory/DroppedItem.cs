@@ -27,7 +27,7 @@ public class DroppedItem : NetworkBehaviour
    //Coroutine to wait on the item struct being synced
    private IEnumerator WaitOnItemStructSync()
     {
-        while (itemStruct.Value.type == Item.ItemType.Blank)
+        while (itemStruct.Value.type == 0)
         {
             yield return new WaitForEndOfFrame();
         }

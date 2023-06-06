@@ -16,52 +16,79 @@ public class CameraRaycast : NetworkBehaviour
     void Update()
     {
         if (!IsOwner) return;
+        RunCameraRaycast();
+    }
+    /// <summary>
+    /// Method that uses a raycast to check for interactability in the world
+    /// </summary>
+    private void RunCameraRaycast()
+    {
         RaycastHit hit;
         Ray ray = rayCamera.ScreenPointToRay(Input.mousePosition);
         //Raycast to check interactability
-        if (Physics.Raycast(ray, out hit, maxDistance:15, layerMask:~ignoreLayers)) {
-
-            //If we hit, check if its the same item we hit previously. If its not, call the function to update the data
-            //Might need to be changed later if object values update without player interaction.
+        if (Physics.Raycast(ray, out hit, maxDistance: 15, layerMask: ~ignoreLayers))
+        {
+            //Store hit object
             selectedObject = hit.transform.gameObject;
+            //Check if a different object is hit than last frame
             if (selectedObject != oldObject)
             {
-                //Set the old object to be the current one
+                //If it is, set that object as the new one
                 oldObject = selectedObject;
                 //Check if this object has the returnRaycastData script, and if it does, cache it, and run the raycastDataOnce function
-                if (selectedObject.GetComponent<ReturnRaycastData>() != null)
+                if (selectedObject.TryGetComponent(out ReturnRaycastData data))
                 {
-                    raycastData = selectedObject.GetComponent<ReturnRaycastData>();
-
+                    //If hit, assign data reference and run raycast logic
+                    raycastData = data;
                     RunRaycastLogicOnce();
                 }
-                else{
+                else
+                {
+                    //If not hit, set data to null and deactivate any item text
                     raycastData = null;
                     SendDeactivateItemText();
                 }
             }
+
+
+
             if (raycastData != null)
             {
                 if (raycastData.isItem)
                 {
                     CheckItemRaycastOnKeypress();
-                }else if (raycastData.isChest)
+                }
+                else if (raycastData.isChest)
                 {
                     CheckChestRaycastOnKeypress();
                 }
             }
 
-        
 
-      
 
+
+
+        }
+        else
+        {
+            raycastData = null;
+            if (selectedObject != null)
+            {
+                SendDeactivateItemText();
+                selectedObject = null;
+            }
+        }
     }
-
-    }
+    #region World text events
     public delegate void UpdateWorldText(string displayText, GameObject objectToFollow, bool enableText);
     public static event UpdateWorldText onSetWorldText;
+    #endregion
+    /// <summary>
+    /// Method that handles logic for checking raycast data 
+    /// </summary>
     public void RunRaycastLogicOnce()
     {
+        //If raycast data isn't null, set text
         if (raycastData != null)
         {
             if (raycastData.isItem)
@@ -86,17 +113,21 @@ public class CameraRaycast : NetworkBehaviour
                 }
 
 
-
-
-             
+            }
+            else if (raycastData.isChest)
+            {
+                onSetWorldText("Chest", selectedObject, true);
             }
 
         }
         else
         {
-            onSetWorldText(null, null, false);
+            SendDeactivateItemText();
         }
     }
+    /// <summary>
+    /// Method that sends the event to deactive the world item text.
+    /// </summary>
     public void SendDeactivateItemText()
     {
         onSetWorldText(null, null, false);
@@ -133,6 +164,10 @@ public class CameraRaycast : NetworkBehaviour
 
         }
     }
+    /// <summary>
+    /// Method that sets the inventory reference
+    /// </summary>
+    /// <param name="inv">The inventory reference to set as</param>
     public void setInventory(Inventory inv)
     {
         inventory = inv;

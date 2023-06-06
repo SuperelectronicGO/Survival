@@ -32,11 +32,14 @@ public class PlayerHandler : NetworkBehaviour
 
     //Hotbar manager
     public HotbarManager hotbarManager;
+
     //Action blockers
     [HideInInspector] public List<string> mouseBlockers = new List<string>();
     [HideInInspector] public List<string> KeyBlockers = new List<string>();
+    [HideInInspector] public List<string> itemBlockers = new List<string>();
     public bool ableToMouseLook = true;
     public bool ableToKey = true;
+    public bool ableToItem = true;
 
     /* * * Network Variables * * */
     //Health
@@ -116,14 +119,20 @@ public class PlayerHandler : NetworkBehaviour
         
     }
 
-    //Method that drops an item on the server and calls the RPC
+    /// <summary>
+    /// Method that drops an item by invoking server RPCs
+    /// </summary>
+    /// <param name="item">The item to drop</param>
     public void DropItem(Item item)
     {
 
         DropItemServerRPC(item.ToStruct());
         return;
     }
-    //Void called when the current Item is switched on the owned player
+    /// <summary>
+    /// Method that is called when an item is equipped
+    /// </summary>
+    /// <param name="item">The item that was equipped</param>
     public void OnEquip(Item item)
     {
         toolFilter.filterTools(item.itemType);
@@ -148,7 +157,10 @@ public class PlayerHandler : NetworkBehaviour
         }
 
     }
-    //Void called when the current item is switched for a player that isn't owned by the user
+    /// <summary>
+    /// Method that is called when a connected, non-owned player equips an item
+    /// </summary>
+    /// <param name="item">The item that was equipped</param>
     public void OnEquipNotUserOwned(Item item)
     {
         toolFilter.filterTools(item.itemType);
@@ -161,12 +173,18 @@ public class PlayerHandler : NetworkBehaviour
                 break;
         }
     }
-    //Method to set the active slot of the player
+    /// <summary>
+    /// Method that sets the active slot the player is using
+    /// </summary>
+    /// <param name="slot"></param>
     public void SetActiveSlot(ISInterface slot)
     {
         currentSlot = slot;
     }
-    //Method called when the use key is pressed for a player
+    /// <summary>
+    /// Method that controls what happens when the player uses an item
+    /// </summary>
+    /// <param name="item">The item to check logic for</param>
     public void UseItem(Item item)
     {
         switch (item.itemType)
@@ -183,9 +201,12 @@ public class PlayerHandler : NetworkBehaviour
                 return;
         }
     }
-    //Coroutine that cycles forever checking if certain actions (I.E moving) are blocked by others (I.E a search bar)
+    /// <summary>
+    /// Coroutine that runs forever checking if certain actions are blocked by something
+    /// </summary>
     public IEnumerator CheckLockConditions()
     {
+        //Check if mouse is blocked
         if (mouseBlockers.Count != 0)
         {
             ableToMouseLook = false;
@@ -197,6 +218,7 @@ public class PlayerHandler : NetworkBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             
         }
+        //Check if keys are blocked
         if (KeyBlockers.Count != 0)
         {
             ableToKey = false;
@@ -205,27 +227,48 @@ public class PlayerHandler : NetworkBehaviour
         {
             ableToKey = true;
         }
-
+        //Check if items are blocked
+        if(itemBlockers.Count != 0)
+        {
+            ableToItem = false;
+        }
+        else
+        {
+            ableToItem = true;
+        }
+        //Wait for 0.05 seconds, then check again
         yield return new WaitForSecondsRealtime(0.05f);
         StartCoroutine(CheckLockConditions());
     }
-    //Method that sets the current item of the player
+    /// <summary>
+    /// Method that sets the current item being used by the player
+    /// </summary>
+    /// <param name="itemToUse">The item to set as</param>
     public void SetActiveItem(Item itemToUse)
     {
         currentItem = itemToUse;
     }
-    
-    //Method that damages the player
+
+    #region Damage event references
     public delegate void UpdateVitalsUI(float health, float maxHealth);
     public static event UpdateVitalsUI _UpdateVitalsUI;
+    #endregion
+    /// <summary>
+    /// Method that damages the player
+    /// </summary>
+    /// <param name="amount">The amount to damage the player by</param>
     public void DamagePlayer(float amount)
     {
             playerHealth.Value -= amount;
             _UpdateVitalsUI(playerHealth.Value, playerMaxHealth.Value);
     }
-    //Server RPC's
+
+    #region Server RPCs
+    /// <summary>
+    /// Method that drops an item by spawning it on the server
+    /// </summary>
+    /// <param name="itemStruct">The item data to construct the item with</param>
     [ServerRpc]
-    //Method that asks the server to drop the specified item
     public void DropItemServerRPC(ItemNetworkStruct itemStruct)
     {
 
@@ -236,8 +279,11 @@ public class PlayerHandler : NetworkBehaviour
         droppedItem.GetComponent<NetworkObject>().Spawn(true);
         droppedItem.GetComponent<DroppedItem>().SetItemStructValue(itemStruct);
     }
+    /// <summary>
+    /// Method that destroys the given item on the server
+    /// </summary>
+    /// <param name="objectToDestroy">The reference to the object to destroy</param>
     [ServerRpc]
-    //Method that asks the server to destroy the specified item
     public void DestroyItemServerRPC(NetworkObjectReference objectToDestroy)
     {
         if (objectToDestroy.TryGet(out NetworkObject obj))
@@ -245,6 +291,10 @@ public class PlayerHandler : NetworkBehaviour
             obj.Despawn(true);
         }
     }
+    
+    // **** Rewrite to be more efficient ****
+
+
     [ServerRpc(RequireOwnership = false)]
     //Damage the player on the server - this is for when we are attacked by creatures or other players
     public void DamagePlayerServerRPC(NetworkObjectReference playerToDamage, float amount)
@@ -261,14 +311,17 @@ public class PlayerHandler : NetworkBehaviour
             DamagePlayerClientRPC(amount, clientRpcParams);
         }
     }
+    #endregion
+
+    #region Client RPCs
     [ClientRpc]
     private void DamagePlayerClientRPC(float amount, ClientRpcParams clientRpcParams = default)
     {
         DamagePlayer(amount);
     }
+    #endregion
 
-    
-   
-   
-   
+
+
+
 }

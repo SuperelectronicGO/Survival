@@ -101,24 +101,33 @@ public class GameNetworkManager : MonoBehaviour
      *  and starts the coroutine to update the list of players in the lobby. */
     public async void StartHost(int maxMembers, string lobbyName)
     {
-        
-        NetworkManager.Singleton.OnServerStarted += OnServerStarted;
-
-        if (NetworkManager.Singleton.StartHost())
+        try
         {
-          currentLobby = await SteamMatchmaking.CreateLobbyAsync(maxMembers);
-            currentLobby.Value.SetData("name", lobbyName);
-            currentLobby.Value.SetData("password", "amongus");
-            //Random Key name and Value to only return lobbys that exist on this games network
-            Debug.Log($"Lobby Id is {currentLobby.Value.Id}");
+            NetworkManager.Singleton.OnServerStarted += OnServerStarted;
+            if (NetworkManager.Singleton.StartHost())
+            {
+                currentLobby = await SteamMatchmaking.CreateLobbyAsync(maxMembers);
+                currentLobby.Value.SetData("name", lobbyName);
+                currentLobby.Value.SetData("password", "amongus");
+                //Random Key name and Value to only return lobbys that exist on this games network
+                Debug.Log($"Lobby Id is {currentLobby.Value.Id}");
 
+            }
+            TitleScreenSelector.instance.finishedLoading = true;
+            StartCoroutine(UpdateLobbyPlayerInfo());
         }
-        else
+        catch
         {
-            Debug.LogError("Error starting host");
+            TitleScreenSelector.instance.finishedLoading = false;
+            TitleScreenSelector.instance.SetScreenToCreateLobby();
+            NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
+            NetworkManager.Singleton.Shutdown();
+            if (currentLobby != null)
+            {
+                currentLobby.Value.Leave();
+            }
+            StopCoroutine(UpdateLobbyPlayerInfo());
         }
-        TitleScreenSelector.instance.finishedLoading = true;
-        StartCoroutine(UpdateLobbyPlayerInfo());
     }
 
     /* Starts the client and subscribes to the OnClientConnected and Disconnected callbacks. 

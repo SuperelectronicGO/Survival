@@ -592,10 +592,7 @@ MonoBehaviour:
     spellActivationIndex: 0
     type: 2
     attributes: []
-  spawnOffsetPosition: {x: 0.504, y: -0.214, z: 0.692}
-  deathEffect: {fileID: 549412511383009452, guid: 89c0db31fd95f0e498aeaa57b1e4ac8a,
-    type: 3}
-  playerLayerIndex: 9
+  spawnOffsetPosition: {x: -0.03, y: 0.3, z: 0.06}
   timeBeforeCast: 0
 --- !u!54 &7183050671010857248
 Rigidbody:

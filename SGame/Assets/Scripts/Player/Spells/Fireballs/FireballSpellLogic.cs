@@ -2,13 +2,18 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
-public class FireballSpellLogic:MonoBehaviour{
+public class FireballSpellLogic : MonoBehaviour{
     public KeyCode castKey;
     public Spell spell;
     [SerializeField] private Vector3 spawnOffsetPosition;
     public float timeBeforeCast;
     private ModifiyVFXGraphProperty modifyProperty;
     private Animator anim;
+    //String reference for the player blockers 
+    private string blocker;
+    /// <summary>
+    /// Start sets initial position, VFX propertys, stores references, and plays proper animations
+    /// </summary>
     private void Start()
     {
         //Set offset position of the spell if it needs it
@@ -34,24 +39,41 @@ public class FireballSpellLogic:MonoBehaviour{
         StartCoroutine(SetMainSpawnDelay());
         StartCoroutine(WaitOnPulloutEnd());
     }
+
     bool thrown = false;
     bool finishedPullout = false;
+
     void Update()
     {
         //Throw spell
         if (Input.GetKeyDown(castKey)&&!thrown&&finishedPullout)
         {
-           // SpellManager.instance.SetPositionToWorld(this.transform);
-           // SpellManager.instance.ThrowSpell(this.gameObject, spell);
-            thrown = true;
-            Vector3 throwDir = SpellManager.instance.cam.transform.forward;
-            //Destroy old spell graphics
-            SpellManager.instance.AskServerDestroySpellGraphicsServerRPC(NetworkManager.Singleton.LocalClientId, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>());
-            SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(spell), throwDir, 2500);
-            SpellManager.instance.ReEquipLastItem();
-            Destroy(this.gameObject);
+            ThrowSpell();
         }
     }
+    /// <summary>
+    /// Throws the spell when the cast key is pressed
+    /// </summary>
+    private void ThrowSpell()
+    {
+        thrown = true;
+        //Direction to throw spell
+        Vector3 throwDir = SpellManager.instance.cam.transform.forward;
+        //Destroy old spell graphics
+        SpellManager.instance.AskServerDestroySpellGraphicsServerRPC(NetworkManager.Singleton.LocalClientId, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>());
+        //Invoke throw spell ServerRPC
+        SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(spell), throwDir, 2500);
+        //Remove blocker from reference
+        PlayerHandler.instance.itemBlockers.Remove(blocker);
+        //Re-equip the last held item before the spell was summoned
+        SpellManager.instance.ReEquipLastItem();
+        //Destroy graphics/held spell
+        Destroy(this.gameObject);
+    }
+    /// <summary>
+    /// Coroutine that waits until the pullout animation has finished to run logic
+    /// </summary>
+    /// <returns>After the pullout has ended</returns>
     private IEnumerator WaitOnPulloutEnd()
     {
         yield return new WaitUntil(() => anim.GetCurrentAnimatorStateInfo(0).IsTag("Idle") == true);
@@ -60,8 +82,12 @@ public class FireballSpellLogic:MonoBehaviour{
         {
             modifyProperty.changeMoveAllow(true);
         }
-
+        yield break;
     }
+    /// <summary>
+    /// Coroutine that sets the spawn delay of a spell's graphics for things to look good
+    /// </summary>
+    /// <returns>After setting the property</returns>
     private IEnumerator SetMainSpawnDelay()
     {
         yield return new WaitForEndOfFrame();
@@ -71,10 +97,21 @@ public class FireballSpellLogic:MonoBehaviour{
         }
         yield break;
     }
-    
+    /// <summary>
+    /// Method that sets the initial position of the spell
+    /// </summary>
     private void setInitialPosition()
     {
-        PlayerHandler.instance.anim.Play("SpellIdle");
         transform.localPosition = spawnOffsetPosition;
+        PlayerHandler.instance.anim.Play("SpellIdle");
+    }
+    /// <summary>
+    /// Method that sets the string being used to block player equips
+    /// </summary>
+    /// <param name="blockerString">The reference to the blocker</param>
+    public void SetItemBlocker(string blockerString)
+    {
+        blocker = blockerString;
+        PlayerHandler.instance.itemBlockers.Add(blocker);
     }
 }

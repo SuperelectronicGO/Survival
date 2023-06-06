@@ -28,17 +28,18 @@ public class WorldObject : MonoBehaviour
         //Set values
         float baseDamage = handler.currentItem.getAttributeValue(ItemAttribute.AttributeName.Damage);
         float damageMult = handler.currentItem.getAttributeValue(ItemAttribute.AttributeName.Type);
-        string hitItemType = handler.currentItem.getAttributeString(ItemAttribute.AttributeName.Type);
-       
+        //string hitItemType = handler.currentItem.getAttributeString(ItemAttribute.AttributeName.Type);
+        Debug.LogError("Removed attribute strings, fix :D");
+
         //Subtract Health
-        if (breakableBy == hitItemType)
-        {
-            health -= baseDamage * damageMult;
-        }
-        else
-        {
-            health -= baseDamage;
-        }
+       // if (breakableBy == hitItemType)
+       // {
+       //     health -= baseDamage * damageMult;
+       // }
+        //else
+       // {
+       //     health -= baseDamage;
+       // }
         if (health <= 0)
         {
             objectDeath();

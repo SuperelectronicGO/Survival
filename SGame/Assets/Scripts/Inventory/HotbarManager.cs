@@ -12,8 +12,9 @@ public class HotbarManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+       
         //Ensure no equip during spell
-        if (!player.currentItem.hasAttribute(ItemAttribute.AttributeName.AllowsSpell))
+        if (player.ableToItem)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
