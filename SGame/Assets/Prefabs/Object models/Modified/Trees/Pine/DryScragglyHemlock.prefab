@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4432018115022783377}
   - component: {fileID: 3044474441185959698}
   - component: {fileID: 3044474441185959699}
+  - component: {fileID: -2020599167826342751}
   m_Layer: 0
   m_Name: DryScragglyHemlock
   m_TagString: Untagged
@@ -118,3 +119,15 @@ MonoBehaviour:
   SceneMigrationSynchronization: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
+--- !u!114 &-2020599167826342751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2774583019794080324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

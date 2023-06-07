@@ -461,6 +461,57 @@ public static class Extensions
         }
         return values;
     }
+    /// <summary>
+    /// Method that converts a spell in class form to its struct equivelent
+    /// </summary>
+    /// <param name="spell"></param>
+    /// <returns>A copy of the spell in struct form</returns>
+    public static SpellNetworkStruct SpellNetworkClassToStruct(this Spell source)
+    {
+        //Check if spell is null, and throw if it is
+        if (source == null)
+        {
+            throw new System.NullReferenceException();
+        }
+        //Define a new SpellNetworkStruct
+        SpellNetworkStruct spellStruct = new SpellNetworkStruct
+        {
+            type = 0,
+            attributeTypes = 0,
+            attributeValues = new NetworkHalf[source.attributes.Count]
+        };
+
+        spellStruct.type = source.type.SpellIDFromType();
+        spellStruct.attributeTypes = source.attributes.SpellAttributeTypeUShortFromAttributeList();
+        spellStruct.attributeValues = source.attributes.SpellAttributeValuesFromClass();
+        //Return the final struct
+        return spellStruct;
+    }
+    /// <summary>
+    /// Method that converts a spell in struct form to its class equivelent
+    /// </summary>
+    /// <param name="spellStruct"></param>
+    /// <returns>A copy of the spell struct as a class</returns>
+    public static Spell SpellNetworkStructToClass(this SpellNetworkStruct source)
+    {
+        //Create a new spell
+        Spell spell = new Spell();
+        spell.type = source.type.SpellTypeFromID();
+        spell.attributes = new List<SpellAttribute>();
+        SpellAttribute.AttributeType[] spellAttributeTypes = source.attributeTypes.SpellAttributeTypeFromUShort();
+        float[] spellattributeValues = source.attributeValues.SpellAttributeValuesFromStruct();
+        for (int i = 0; i < source.attributeValues.Length; i++)
+        {
+
+            spell.attributes.Add(new SpellAttribute
+            {
+                attribute = spellAttributeTypes[i],
+                value = spellattributeValues[i]
+            });
+        }
+        //Return the spell
+        return spell;
+    }
     #endregion
 
     /// <summary>

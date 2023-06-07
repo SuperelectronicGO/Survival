@@ -36,7 +36,7 @@ public class ServerFireballSpellLogic : NetworkBehaviour
                 default:
                     effectIndex = 0;
                     break;
-                case Spell.SpellType.VoidFireball:
+                case 2: //Void fireball index = 2
                     effectIndex = 1;
                     break;
             }

@@ -13,6 +13,8 @@ public class CustomObjectFiltering : NetworkBehaviour
     private List<HashSet<GameObject>> activeTiles = new List<HashSet<GameObject>>();
     //Max distance objects can be before they are disabled
     [SerializeField] private int maxObjectDistance = 500;
+    //Dictionary holding the terrains and their positions
+    public Dictionary<float2, TileObjectList> terrainPositionList = new Dictionary<float2, TileObjectList>();
     //Static instance of the pooler to be referenced
     public static CustomObjectFiltering instance { get; private set; }
     private void Awake()
@@ -28,7 +30,7 @@ public class CustomObjectFiltering : NetworkBehaviour
     {
         while (true)
         {
-            for(int i = 0; i < activeTiles.Count; i++)
+            for (int i = 0; i < activeTiles.Count; i++)
             {
                 FilterObjects(activeTiles[i]);
                 yield return new WaitForSecondsRealtime(0.5f);
@@ -42,16 +44,27 @@ public class CustomObjectFiltering : NetworkBehaviour
     /// <param name="objectList">The hash set containing the objects</param>
     public void FilterObjects(HashSet<GameObject> objectList)
     {
-        foreach(GameObject g in objectList)
+        foreach (GameObject g in objectList)
         {
-            if(Vector2.Distance(new Vector2(activePlayer.position.x, activePlayer.position.z), new Vector2(g.transform.position.x, g.transform.position.z)) < maxObjectDistance)
+            if (Vector2.Distance(new Vector2(activePlayer.position.x, activePlayer.position.z), new Vector2(g.transform.position.x, g.transform.position.z)) < maxObjectDistance)
             {
                 g.SetActive(true);
             }
             else
             {
-                g.SetActive(false);   
+                g.SetActive(false);
             }
+        }
+    }
+    /// <summary>
+    /// Method that sets all the objects in a hash set inactive
+    /// </summary>
+    /// <param name="objectList">The hash set of objects to reference</param>
+    public void SetAllInactive(HashSet<GameObject> objectList)
+    {
+        foreach (GameObject g in objectList)
+        {
+            g.SetActive(false);
         }
     }
     /// <summary>
@@ -92,4 +105,6 @@ public class CustomObjectFiltering : NetworkBehaviour
     {
         StartCoroutine(CheckTileObjects());
     }
+
 }
+

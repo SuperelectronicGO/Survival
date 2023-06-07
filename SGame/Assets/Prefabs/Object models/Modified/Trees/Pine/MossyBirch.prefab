@@ -58,6 +58,7 @@ GameObject:
   - component: {fileID: 996546353078062379}
   - component: {fileID: 3040078084758649313}
   - component: {fileID: 793909823}
+  - component: {fileID: -5364569586305047234}
   m_Layer: 0
   m_Name: MossyBirch
   m_TagString: Untagged
@@ -151,6 +152,18 @@ MonoBehaviour:
   SceneMigrationSynchronization: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
+--- !u!114 &-5364569586305047234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3544467704521070644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &8014297184822715276
 GameObject:
   m_ObjectHideFlags: 0

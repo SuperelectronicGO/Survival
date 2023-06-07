@@ -119,6 +119,10 @@ public class PlayerHandler : NetworkBehaviour
         
     }
 
+    private void fuckStolkey(int funny, string funn2)
+    {
+
+    }
     /// <summary>
     /// Method that drops an item by invoking server RPCs
     /// </summary>

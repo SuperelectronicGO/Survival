@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 8232664141890022319}
   - component: {fileID: 7314366735573972777}
   - component: {fileID: 7590575902458950758}
+  - component: {fileID: -2248628380766247248}
   m_Layer: 0
   m_Name: RottenStump
   m_TagString: Untagged
@@ -117,3 +118,15 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1.0175781, y: 7.107453, z: 1.2348633}
   m_Center: {x: 0.0063476562, y: 3.4570034, z: -0.004638672}
+--- !u!114 &-2248628380766247248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7584255402818980474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

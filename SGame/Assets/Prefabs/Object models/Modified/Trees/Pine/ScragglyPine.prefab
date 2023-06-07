@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 9055144614637746425}
   - component: {fileID: 7668437937585169534}
   - component: {fileID: 7668437937585169535}
+  - component: {fileID: 2984572839522711376}
   m_Layer: 0
   m_Name: ScragglyPine
   m_TagString: Untagged
@@ -119,3 +120,15 @@ MonoBehaviour:
   SceneMigrationSynchronization: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
+--- !u!114 &2984572839522711376
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7397912792695150892}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

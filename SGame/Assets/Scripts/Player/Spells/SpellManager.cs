@@ -134,7 +134,7 @@ public class SpellManager : NetworkBehaviour
                 player.SetActiveSlot(RuneManager.instance.GetSpellSlot(spell.spellActivationIndex));
                 //Deselect all hotbar slots
                 hotbarManager.DeselectAllSlots();
-                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(spell), GetComponent<NetworkObject>());
+                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(), GetComponent<NetworkObject>());
                 return;
             case Spell.SpellType.VoidFireball:
                 
@@ -148,7 +148,7 @@ public class SpellManager : NetworkBehaviour
                 //Deselect all hotbar slots
                 hotbarManager.DeselectAllSlots();
                 //Spawn graphics for other clients
-                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(spell), GetComponent<NetworkObject>());
+                AskServerSpawnSpellGraphicsServerRPC(NetworkManager.LocalClientId, spell.SpellNetworkClassToStruct(), GetComponent<NetworkObject>());
                 return;
         }
     }
@@ -243,11 +243,11 @@ public class SpellManager : NetworkBehaviour
                 switch (spellStruct.type)
                 {
 
-                    case Spell.SpellType.Fireball:
+                    case 1: //Fireball spell ID is 1
                         g = Instantiate(SpellAssets.instance.fireballSpellGraphics, obj.GetComponent<SpellManager>().spellAnchor.transform.position, Quaternion.identity, obj.GetComponent<SpellManager>().spellAnchor.transform);
                         obj.GetComponent<NonHostComponents>().currentSpellGraphics = g;
                         break;
-                    case Spell.SpellType.VoidFireball:
+                    case 2: //Void fireball spell ID is 2
                         g = Instantiate(SpellAssets.instance.voidFireballSpellGraphics, obj.GetComponent<SpellManager>().spellAnchor.transform.position, Quaternion.identity, obj.GetComponent<SpellManager>().spellAnchor.transform);
                         obj.GetComponent<NonHostComponents>().currentSpellGraphics = g;
                         break;
@@ -353,52 +353,7 @@ public class Spell
         
     }
 
-    /// <summary>
-    /// Method that converts a spell in class form to its struct equivelent
-    /// </summary>
-    /// <param name="spell"></param>
-    /// <returns>A copy of the spell in struct form</returns>
-    public SpellNetworkStruct SpellNetworkClassToStruct(Spell spell)
-    {
-        //Check if spell is null, and throw if it is
-        if(spell == null)
-        {
-            throw new System.NullReferenceException();
-        }
-        //Define a new SpellNetworkStruct
-        SpellNetworkStruct spellStruct = new SpellNetworkStruct
-        {
-            type = spell.type,
-            attributeTypes = new SpellAttribute.AttributeType[spell.attributes.Count],
-            attributeValues = new float[spell.attributes.Count]
-        };
-        //Copy over spell attribute values
-        for(int i=0; i<spell.attributes.Count; i++)
-        {
-            spellStruct.attributeTypes[i] = spell.attributes[i].attribute;
-            spellStruct.attributeValues[i] = spell.attributes[i].value;
-        }
-        //Return the final struct
-        return spellStruct;
-    }
-    /// <summary>
-    /// Method that converts a spell in struct form to its class equivelent
-    /// </summary>
-    /// <param name="spellStruct"></param>
-    /// <returns>A copy of the spell struct as a class</returns>
-    public Spell SpellNetworkStructToClass(SpellNetworkStruct spellStruct)
-    {
-        //Create a new spell
-        Spell spell = new Spell();
-        spell.type = spellStruct.type;
-        spell.attributes = new List<SpellAttribute>();
-        for(int i=0; i<spellStruct.attributeValues.Length; i++)
-        {
-            spell.attributes.Add(new SpellAttribute { attribute = spellStruct.attributeTypes[i], value = spellStruct.attributeValues[i] });
-        }
-        //Return the spell
-        return spell;
-    }
+    
 
 }
 /// <summary>
@@ -423,10 +378,10 @@ public class SpellAttribute{
 [System.Serializable]
 public struct SpellNetworkStruct : INetworkSerializable
 {
-    public Spell.SpellType type;
+    public byte type;
     //Attribute types and values
-    public SpellAttribute.AttributeType[] attributeTypes;
-    public float[] attributeValues;
+    public ushort attributeTypes;
+    public NetworkHalf[] attributeValues;
     public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
     {
         serializer.SerializeValue(ref type);

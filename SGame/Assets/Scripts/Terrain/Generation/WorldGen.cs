@@ -69,7 +69,7 @@ public class WorldGen : NetworkBehaviour
     //How large one dimension of the terrains heightmap is
     [SerializeField] private int terrainHeightmapLength = 1025;
     //List of all main terrains 
-    private List<Terrain> terrains = new List<Terrain>();
+    public List<Terrain> terrains = new List<Terrain>();
     //List of all terrain parents
     private List<Transform> terrainParents = new List<Transform>();
     //List of all terrainDatas
@@ -111,18 +111,10 @@ public class WorldGen : NetworkBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        //Set instace
         instance = this;
-        //Set terrain Biomes
-        for (int i = 0; i < terrainTransformParent.childCount; i++)
-        {
-
-            terrains.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>());
-            terrainParents.Add(terrainTransformParent.GetChild(i));
-
-            tDatas.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>().terrainData);
-            //set material
-            //terrains[i].materialTemplate = terrainMaterial;
-        }
+        //Terrain References
+        SetTerrainReferences();
 
         TerrainLayer[] layers = new TerrainLayer[biomeStorage.biomes.Length];
         int maxSubLength = -10;
@@ -180,26 +172,42 @@ public class WorldGen : NetworkBehaviour
         //  if (GameNetworkManager.Instance != null)
         // {
         if (testingNetworkManager.activeInHierarchy) return;
-            if (GameNetworkManager.Instance.generateWorld)
-            {
-                //if (!NetworkManager.Singleton.IsHost) return;
-                StartCoroutine(initialTerrainGeneration());
+        if (GameNetworkManager.Instance.generateWorld)
+        {
+            //if (!NetworkManager.Singleton.IsHost) return;
+            StartCoroutine(initialTerrainGeneration());
         }
         else
         {
             StartCoroutine(TestSpawner());
         }
-       // }
+        // }
     }
+    /// <summary>
+    /// Method that sets the references to terrains
+    /// </summary>
+    private void SetTerrainReferences()
+    {
+        for (int i = 0; i < terrainTransformParent.childCount; i++)
+        {
+            terrains.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>());
+            terrainParents.Add(terrainTransformParent.GetChild(i));
+            tDatas.Add(terrainTransformParent.GetChild(i).transform.Find("Main Terrain").gameObject.GetComponent<Terrain>().terrainData);
+            TileObjectList tileObjectList = terrains[i].gameObject.AddComponent<TileObjectList>();
+            int2 tPos = new int2(Mathf.RoundToInt(terrains[i].transform.position.x / 1000), Mathf.RoundToInt(terrains[i].transform.position.z / 1000));
+            CustomObjectFiltering.instance.terrainPositionList.Add(tPos, tileObjectList);
+        }
+    }
+
     private IEnumerator TestSpawner()
     {
-        for(int i=0; i<6; i++)
+        for (int i = 0; i < 6; i++)
         {
             Debug.LogWarning($"Spawning in {6 - i}");
             yield return new WaitForSecondsRealtime(1);
         }
         genScreen.gameObject.SetActive(false);
-        
+
         PlayerNetwork.instance.SpawnPlayerTest();
         yield return new WaitForSecondsRealtime(2.5f);
         spawnCam.SetActive(false);
@@ -667,9 +675,7 @@ public class WorldGen : NetworkBehaviour
         int maxWeightAmnt = 0;
         //Value to store the normals of the terrain
         Vector3 spotNormal = new Vector3();
-        //Add the TileObjectList to the tile and cache it
-        TileObjectList tileObjectList = terrain.gameObject.AddComponent<TileObjectList>();
-            
+
         // * * * * * Before Generation Setup * * * * * \\
 
         //Log this tile in the terrain tile biome list
@@ -1396,20 +1402,22 @@ public class WorldGen : NetworkBehaviour
                                 if (selectedOb.alignNormals)
                                 {
 
-                                    RaycastHit previewHit;
-
-                                    if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
-                                    {
-                                        spotNormal = previewHit.normal;
-                                    }
-
+                                   // RaycastHit previewHit;
+                                   // if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
+                                   // {
+                                   //     spotNormal = previewHit.normal;
+                                   // }
+                                    Vector3 terrainNormal = tDatas[tileNumber].GetInterpolatedNormal(x / terrainHeightmapLength, y / terrainHeightmapLength) + new Vector3(0, Random.Range(0, 360), 0);
+                                    
+                                    rotQuat = Quaternion.Euler(terrainNormal);
+                                    
                                 }
                                 rotQuat = rotQuat * Quaternion.Euler(0, Random.Range(0, 360), 0);
 
                                 //Spawn the object
-                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, rotQuat);
+                                GameObject spawnedObject = Instantiate(selectedOb.prefab, spawnedPosition, rotQuat, terrains[tileNumber].transform);
                                 //Spawn the object on the server
-                                spawnedObject.GetComponent<Unity.Netcode.NetworkObject>().Spawn(true);
+                                spawnedObject.GetComponent<NetworkObject>().Spawn(true);
                                 if (selectedOb.terrainBlending)
                                 {
 
@@ -1423,7 +1431,7 @@ public class WorldGen : NetworkBehaviour
                                 //Name the object
                                 spawnedObject.name = selectedOb.name;
                                 //Add the object to the terrains object list
-                                tileObjectList.objectList.Add(spawnedObject);
+                                //tileObjectList.objectList.Add(spawnedObject);
                             }
 
                         }
@@ -1456,6 +1464,8 @@ public class WorldGen : NetworkBehaviour
         genScreen.genAmount += 1;
         //Refresh the UI of the generation screen
         genScreen.RefreshGenerationUI();
+        //Set objects inactive if tile is disabled
+        if (!terrains[tileNumber].gameObject.activeInHierarchy) CustomObjectFiltering.instance.SetAllInactive(terrains[tileNumber].GetComponent<TileObjectList>().objectList);
         //Set moveNext to true to move to the next tile
         moveNext = true;
         #endregion

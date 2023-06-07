@@ -62,7 +62,7 @@ public class FireballSpellLogic : MonoBehaviour{
         //Destroy old spell graphics
         SpellManager.instance.AskServerDestroySpellGraphicsServerRPC(NetworkManager.Singleton.LocalClientId, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>());
         //Invoke throw spell ServerRPC
-        SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(spell), throwDir, 2500);
+        SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(), throwDir, 2500);
         //Remove blocker from reference
         PlayerHandler.instance.itemBlockers.Remove(blocker);
         //Re-equip the last held item before the spell was summoned

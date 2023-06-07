@@ -28,7 +28,7 @@ public class SpellConstructor : NetworkBehaviour
     {
         switch (spell.Value.type)
         {
-            case Spell.SpellType.Fireball:
+            case 1: //Fireball spell ID is 1
                 //Spawn graphics
                 graphics = Instantiate(SpellAssets.instance.fireballSpellGraphics, this.transform.position, Quaternion.identity, this.transform);
                 Destroy(graphics.GetComponent<Animator>());
@@ -55,7 +55,7 @@ public class SpellConstructor : NetworkBehaviour
 
                 }
                 break;
-            case Spell.SpellType.VoidFireball:
+            case 2: //Void fireball spell ID is 2
                 //Spawn graphics
                 graphics = Instantiate(SpellAssets.instance.voidFireballSpellGraphics, this.transform.position, Quaternion.identity, this.transform);
                 Destroy(graphics.GetComponent<Animator>());

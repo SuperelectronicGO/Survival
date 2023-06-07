@@ -24,4 +24,5 @@ public class TileObjectList : MonoBehaviour
     {
         CustomObjectFiltering.instance.RemoveTileFromList(objectList); 
     }
+
 }
