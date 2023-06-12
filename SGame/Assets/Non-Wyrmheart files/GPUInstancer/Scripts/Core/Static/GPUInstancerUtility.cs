@@ -1850,8 +1850,8 @@ namespace GPUInstancer
             string albedoAtlasPath = null;
             string normalAtlasPath = null;
 #endif
-            int cachedMasterTextureLimit = QualitySettings.masterTextureLimit;
-            QualitySettings.masterTextureLimit = 0;
+            int cachedMasterTextureLimit = QualitySettings.globalTextureMipmapLimit;
+            QualitySettings.globalTextureMipmapLimit = 0;
 
             try
             {
@@ -2053,7 +2053,7 @@ namespace GPUInstancer
             }
 
             // clean up
-            QualitySettings.masterTextureLimit = cachedMasterTextureLimit;
+            QualitySettings.globalTextureMipmapLimit = cachedMasterTextureLimit;
             GameObject.DestroyImmediate(sample);
             GameObject.DestroyImmediate(billboardCameraPivot); // this will also release the frameTarget RT
         }

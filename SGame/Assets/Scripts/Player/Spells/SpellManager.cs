@@ -302,8 +302,6 @@ public class SpellManager : NetworkBehaviour
     [ClientRpc]
     public void SpawnSpellDeathEffectClientRPC(NetworkHalf3 position, Quaternion spawnRotation, byte effectIndex)
     {
-
-        Debug.LogError("Recieved that we should spawn a spell!");
         Instantiate(SpellAssets.instance.spellEffects[effectIndex], new Vector3(position.x.data.Value, position.y.data.Value, position.z.data.Value), spawnRotation);
     }
     #endregion

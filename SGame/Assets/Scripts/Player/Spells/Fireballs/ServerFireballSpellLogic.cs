@@ -47,7 +47,6 @@ public class ServerFireballSpellLogic : NetworkBehaviour
             spawnPosition.x.data.Value = (half)transform.position.x;
             spawnPosition.y.data.Value = (half)transform.position.y;
             spawnPosition.z.data.Value = (half)transform.position.z;
-            Debug.LogError("Asked to despawn spells");
             SpellManager.instance.SpawnSpellDeathEffectClientRPC(spawnPosition, rot, effectIndex);
             hit = true;
             GetComponent<NetworkObject>().Despawn(true);
