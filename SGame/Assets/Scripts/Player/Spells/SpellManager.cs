@@ -211,8 +211,10 @@ public class SpellManager : NetworkBehaviour
     /// <param name="spell">The type of spell being thrown</param>s
     /// <param name="throwDirection">The direction the spell should travel in</param>
     /// <param name="force">The amount of force to throw the spell with</param>
+    /// <param name="playerObject">The player object that houses the spell graphics</param>
+    /// <param name="senderId">The Id of the client that sent the spell throw RPC</param>
     [ServerRpc]
-    public void ThrowSpellServerRPC(Vector3 originalPosition, SpellNetworkStruct spell, Vector3 throwDirection, float force)
+    public void ThrowSpellServerRPC(Vector3 originalPosition, SpellNetworkStruct spell, Vector3 throwDirection, ushort force, NetworkObjectReference playerObject, ulong senderId)
     {
         //Instantiate the spell template and spawn it
         GameObject g = Instantiate(SpellAssets.instance.spellTemplate, new Vector3(originalPosition.x, originalPosition.y, originalPosition.z), Quaternion.identity);
@@ -222,6 +224,7 @@ public class SpellManager : NetworkBehaviour
         //Set the property of the shader graph to show its been thrown
         g.transform.GetChild(0).GetComponent<ModifiyVFXGraphProperty>().SendVFXGraphEvent("Detatch");
         g.GetComponent<Rigidbody>().AddForce(throwDirection * force, ForceMode.Force);
+        DestroySpellGraphicsClientRPC(senderId, playerObject);
     }
     /// <summary>
     /// ClientRPC that spawns the spell graphics before being thrown on the client
@@ -234,11 +237,9 @@ public class SpellManager : NetworkBehaviour
     {
         if (playerObject.TryGet(out NetworkObject obj))
         {
-            Debug.Log("recieved!");
             //Make sure the owner of the spell doesn't get targeted by the ClientRPC
             if (NetworkManager.LocalClientId != senderId)
             {
-                Debug.Log("We are switching");
                 GameObject g;
                 switch (spellStruct.type)
                 {
@@ -269,6 +270,8 @@ public class SpellManager : NetworkBehaviour
     {
         SpawnSpellGraphicsClientRPC(senderId, spellStruct, playerObject);
     }
+    public delegate void OnAfterSpellThrown();
+    public static event OnAfterSpellThrown onAfterSpellThrown;
     /// <summary>
     /// Client RPC that destroys the graphics of a spell when thrown
     /// </summary>
@@ -284,16 +287,11 @@ public class SpellManager : NetworkBehaviour
                 obj.GetComponent<NonHostComponents>().DestroyGraphics();
             }
         }
-    }
-    /// <summary>
-    /// Server RPC that runs the DestroySpellGraphics Client RPC
-    /// </summary>
-    /// <param name="senderId">The network Id of the player throwing the spell</param>
-    /// <param name="playerObject">The player obhect that houses the spell graphics</param>
-    [ServerRpc(RequireOwnership = false)]
-    public void AskServerDestroySpellGraphicsServerRPC(ulong senderId, NetworkObjectReference playerObject)
-    {
-        DestroySpellGraphicsClientRPC(senderId, playerObject);
+        else if (!IsServer)
+        {
+                onAfterSpellThrown();
+        }
+        
     }
     /// <summary>
     /// Client RPC that spawns a spell death effect
@@ -302,9 +300,11 @@ public class SpellManager : NetworkBehaviour
     /// <param name="spawnRotation">The rotation to spawn the effect at</param>
     /// <param name="effectIndex">The index of the effect in the array of death effects</param>
     [ClientRpc]
-    public void SpawnSpellDeathEffectClientRPC(Vector3 spawnPosition, Quaternion spawnRotation, int effectIndex)
+    public void SpawnSpellDeathEffectClientRPC(NetworkHalf3 position, Quaternion spawnRotation, byte effectIndex)
     {
-        Instantiate(SpellAssets.instance.spellEffects[effectIndex], spawnPosition, spawnRotation);
+
+        Debug.LogError("Recieved that we should spawn a spell!");
+        Instantiate(SpellAssets.instance.spellEffects[effectIndex], new Vector3(position.x.data.Value, position.y.data.Value, position.z.data.Value), spawnRotation);
     }
     #endregion
 }
@@ -389,5 +389,6 @@ public struct SpellNetworkStruct : INetworkSerializable
         serializer.SerializeValue(ref attributeValues);
     }
 }
+
 #endregion
 

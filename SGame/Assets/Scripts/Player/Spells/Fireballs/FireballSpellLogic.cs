@@ -56,18 +56,30 @@ public class FireballSpellLogic : MonoBehaviour{
     /// </summary>
     private void ThrowSpell()
     {
-        thrown = true;
         //Direction to throw spell
         Vector3 throwDir = SpellManager.instance.cam.transform.forward;
         //Destroy old spell graphics
-        SpellManager.instance.AskServerDestroySpellGraphicsServerRPC(NetworkManager.Singleton.LocalClientId, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>());
+        //SpellManager.instance.AskServerDestroySpellGraphicsServerRPC(NetworkManager.Singleton.LocalClientId, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>());
         //Invoke throw spell ServerRPC
-        SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(), throwDir, 2500);
+        SpellManager.instance.ThrowSpellServerRPC(transform.position, spell.SpellNetworkClassToStruct(), throwDir, 2500, PlayerHandler.instance.gameObject.GetComponent<NetworkObject>(), NetworkManager.Singleton.LocalClientId);
+        //Destroy graphics/held spell if server
+        if (NetworkManager.Singleton.IsServer)
+        {
+            OnSpellThrown();
+        }
+        SpellManager.onAfterSpellThrown += OnSpellThrown;
+    }
+    /// <summary>
+    /// Method that runs the logic after a spell is thrown, once it has recieved that the spell has been spawned
+    /// </summary>
+    public void OnSpellThrown()
+    {
+        thrown = true;
         //Remove blocker from reference
         PlayerHandler.instance.itemBlockers.Remove(blocker);
         //Re-equip the last held item before the spell was summoned
         SpellManager.instance.ReEquipLastItem();
-        //Destroy graphics/held spell
+        SpellManager.onAfterSpellThrown -= OnSpellThrown;
         Destroy(this.gameObject);
     }
     /// <summary>

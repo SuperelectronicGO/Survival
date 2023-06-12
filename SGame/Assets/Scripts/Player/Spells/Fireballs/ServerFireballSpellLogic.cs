@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
+using Unity.Mathematics;
+using System;
 public class ServerFireballSpellLogic : NetworkBehaviour
 {
     public SpellNetworkStruct spell;
@@ -30,7 +32,7 @@ public class ServerFireballSpellLogic : NetworkBehaviour
         {
             ContactPoint contact = collision.contacts[0];
             Quaternion rot = Quaternion.FromToRotation(Vector3.up, contact.normal);
-            int effectIndex = 0;
+            byte effectIndex = 0;
             switch (spell.type)
             {
                 default:
@@ -40,9 +42,15 @@ public class ServerFireballSpellLogic : NetworkBehaviour
                     effectIndex = 1;
                     break;
             }
-            SpellManager.instance.SpawnSpellDeathEffectClientRPC(transform.position, rot, effectIndex);
+
+            NetworkHalf3 spawnPosition = new NetworkHalf3();
+            spawnPosition.x.data.Value = (half)transform.position.x;
+            spawnPosition.y.data.Value = (half)transform.position.y;
+            spawnPosition.z.data.Value = (half)transform.position.z;
+            Debug.LogError("Asked to despawn spells");
+            SpellManager.instance.SpawnSpellDeathEffectClientRPC(spawnPosition, rot, effectIndex);
             hit = true;
-            Destroy(this.gameObject);
+            GetComponent<NetworkObject>().Despawn(true);
 
         }
     }

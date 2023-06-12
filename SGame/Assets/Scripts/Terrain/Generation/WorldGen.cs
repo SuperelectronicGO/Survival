@@ -674,7 +674,7 @@ public class WorldGen : NetworkBehaviour
         //Max weight for biome
         int maxWeightAmnt = 0;
         //Value to store the normals of the terrain
-        Vector3 spotNormal = new Vector3();
+        //Vector3 spotNormal = new Vector3();
 
         // * * * * * Before Generation Setup * * * * * \\
 

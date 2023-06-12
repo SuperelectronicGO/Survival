@@ -76,9 +76,9 @@ public class PlayerHandler : NetworkBehaviour
         {
             currentItem = currentItemNetworkStruct.Value.ToClass();
             OnEquipNotUserOwned(currentItem);
-            Destroy(transform.GetChild(0).GetComponent<AudioListener>());
-            Destroy(GetComponent<KinematicCharacterController.KinematicCharacterMotor>());
-            Destroy(GetComponent<PlayerCharacterController>());
+            transform.GetChild(0).GetComponent<AudioListener>().enabled = false;
+            GetComponent<KinematicCharacterController.KinematicCharacterMotor>().enabled = false;
+            GetComponent<PlayerCharacterController>().enabled = false;
         }
     }
     private void Awake()

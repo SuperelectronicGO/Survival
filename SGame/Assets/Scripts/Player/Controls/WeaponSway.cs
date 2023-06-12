@@ -24,7 +24,7 @@ public class WeaponSway : NetworkBehaviour
     // Start sets initial values
     void Start()
     {
-        if (!IsOwner) Destroy(this);
+        if (!IsOwner) this.enabled = false;
     }
     /// <summary>
     /// Sets the intial rotation, position, and sensitivity of the sway after the camera has been assigned

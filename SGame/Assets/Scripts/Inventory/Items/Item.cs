@@ -400,6 +400,21 @@ public struct NetworkHalf : INetworkSerializable, IEquatable<NetworkHalf>
     public static implicit operator NetworkHalf(half s) => new NetworkHalf { data = new half(s) };
     public static implicit operator NetworkHalf(float s) => new NetworkHalf { data = new half(s) };
 }
+
+[Serializable]
+public struct NetworkHalf3 : INetworkSerializable
+{
+    public NetworkHalf x;
+    public NetworkHalf y;
+    public NetworkHalf z;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref x);
+        serializer.SerializeValue(ref y);
+        serializer.SerializeValue(ref z);
+    }
+}
 [Serializable]
 public class ItemAttribute {
 

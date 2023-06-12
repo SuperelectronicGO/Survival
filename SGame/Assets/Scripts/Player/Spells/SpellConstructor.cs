@@ -8,8 +8,7 @@ public class SpellConstructor : NetworkBehaviour
     GameObject graphics;
     public override void OnNetworkSpawn()
     {
-       
-       
+        if (!IsServer) StartCoroutine(WaitUntilSpellRecievedSpawnGraphics());
     }
     /// <summary>
     /// Coroutine that waits 0.1 seconds to enable the trail so it doesn't flash in the players face
@@ -84,14 +83,22 @@ public class SpellConstructor : NetworkBehaviour
                 break;
         }
     }
+    private IEnumerator WaitUntilSpellRecievedSpawnGraphics()
+    {
+        yield return new WaitUntil(() => spell.Value.type != 0);
+        ConstructSpell();
+        yield break;
+    }
     /// <summary>
     /// Spawns the spell
     /// </summary>
     /// <param name="spellReference">The spell to spawn with</param>
     public void SpawnSpell(SpellNetworkStruct spellReference)
     {
+
         GetComponent<NetworkObject>().Spawn();
         spell.Value = spellReference;
         ConstructSpell();
+        
     }
 }
