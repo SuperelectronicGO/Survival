@@ -23,7 +23,6 @@ public class UIManager : MonoBehaviour
     private RuneManager runeManager;
     private Animator inventoryAnimator;
 
-    private string inventoryBlocker = "Inventory Open";
     // Start is called before the first frame update
     void Start()
     {
@@ -148,7 +147,7 @@ public class UIManager : MonoBehaviour
         runeManager.refreshRuneSlotValues();
         inventoryObject.SetActive(true);
         inventoryOpen = true;
-        PlayerHandler.instance.mouseBlockers.Add(inventoryBlocker);
+        PlayerHandler.instance.mouseBlockers.Add(this.gameObject);
     }
     public void CloseInventory()
     {
@@ -163,7 +162,7 @@ public class UIManager : MonoBehaviour
 
         }
         cManager.returnCraftingItems();
-        PlayerHandler.instance.mouseBlockers.Remove(inventoryBlocker);
+        PlayerHandler.instance.mouseBlockers.Remove(this.gameObject);
         inventoryOpen = false;
         inventoryObject.SetActive(false);
     }

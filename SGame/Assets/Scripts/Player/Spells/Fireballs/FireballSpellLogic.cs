@@ -9,8 +9,6 @@ public class FireballSpellLogic : MonoBehaviour{
     public float timeBeforeCast;
     private ModifiyVFXGraphProperty modifyProperty;
     private Animator anim;
-    //String reference for the player blockers 
-    private string blocker;
     /// <summary>
     /// Start sets initial position, VFX propertys, stores references, and plays proper animations
     /// </summary>
@@ -76,7 +74,7 @@ public class FireballSpellLogic : MonoBehaviour{
     {
         thrown = true;
         //Remove blocker from reference
-        PlayerHandler.instance.itemBlockers.Remove(blocker);
+        PlayerHandler.instance.itemBlockers.Remove(this.gameObject);
         //Re-equip the last held item before the spell was summoned
         SpellManager.instance.ReEquipLastItem();
         SpellManager.onAfterSpellThrown -= OnSpellThrown;
@@ -121,9 +119,8 @@ public class FireballSpellLogic : MonoBehaviour{
     /// Method that sets the string being used to block player equips
     /// </summary>
     /// <param name="blockerString">The reference to the blocker</param>
-    public void SetItemBlocker(string blockerString)
+    public void SetItemBlocker()
     {
-        blocker = blockerString;
-        PlayerHandler.instance.itemBlockers.Add(blocker);
+        PlayerHandler.instance.itemBlockers.Add(this.gameObject);
     }
 }

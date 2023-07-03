@@ -4,6 +4,19 @@ using UnityEngine;
 using System;
 using Unity.Mathematics;
 using System.Linq;
+using System.IO;
+using System.IO.Compression;
+using System.Threading.Tasks;
+using CompressionLevel = System.IO.Compression.CompressionLevel;
+using System.Text;
+using System.ComponentModel;
+
+///Fix for CS0518 error in C# 9.0 (https://stackoverflow.com/questions/62648189/testing-c-sharp-9-0-in-vs2019-cs0518-isexternalinit-is-not-defined-or-imported)
+namespace System.Runtime.CompilerServices
+{
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    internal class IsExternalInit { }
+}
 public static class Extensions
 {
     #region Item extensions
@@ -22,7 +35,7 @@ public static class Extensions
             source.spell = new Spell();
         }
         //Throw exception if amount out of range
-        if(source.amount > 255)
+        if (source.amount > 255)
         {
             throw new ArgumentOutOfRangeException("Amount is larger than byte maximum value (255)");
         }
@@ -71,29 +84,29 @@ public static class Extensions
         //Copy Item attributes
         ItemAttribute.AttributeName[] attributeNames = source.attributeNames.AttributeNameFromUShort();
         float[] attributeValues = source.attributeValues.AttributeValuesFromStruct();
-            for (int i = 0; i < source.attributeValues.Length; i++)
+        for (int i = 0; i < source.attributeValues.Length; i++)
+        {
+            item.attributes.Add(new ItemAttribute
             {
-                item.attributes.Add(new ItemAttribute
-                {
-                    attribute = attributeNames[i],
-                    value = attributeValues[i],
-                });
-            }
-        
+                attribute = attributeNames[i],
+                value = attributeValues[i],
+            });
+        }
+
         //Copy spell attributes from the struct
         item.spell.attributes = new List<SpellAttribute>();
         SpellAttribute.AttributeType[] spellAttributeTypes = source.spellAttributeTypes.SpellAttributeTypeFromUShort();
         float[] spellattributeValues = source.spellAttributeValues.SpellAttributeValuesFromStruct();
-            for (int i = 0; i < source.spellAttributeValues.Length; i++)
-            {
+        for (int i = 0; i < source.spellAttributeValues.Length; i++)
+        {
 
             item.spell.attributes.Add(new SpellAttribute
             {
                 attribute = spellAttributeTypes[i],
                 value = spellattributeValues[i]
             });
-            }
-        
+        }
+
         return item;
     }
     /// <summary>
@@ -266,7 +279,7 @@ public static class Extensions
         //Create new attribute list
         List<ItemAttribute.AttributeName> attributeList = new List<ItemAttribute.AttributeName>();
         //Iterate through each bit
-        for(byte i = 0; i < 16; i++)
+        for (byte i = 0; i < 16; i++)
         {
             if (attributes.GetBitFromUShort(i) == true)
             {
@@ -284,7 +297,7 @@ public static class Extensions
     public static ushort AttributeShortFromNameList(this List<ItemAttribute> source)
     {
         ushort attributes = 0;
-        for(int i = 0; i < source.Count; i++)
+        for (int i = 0; i < source.Count; i++)
         {
             attributes = attributes.SetBitAtUShort(source[i].attribute.AttributeIDFromType());
         }
@@ -298,10 +311,10 @@ public static class Extensions
     public static float[] AttributeValuesFromStruct(this NetworkHalf[] source)
     {
         float[] values = new float[source.Length];
-        for(int i = 0; i < source.Length; i++)
+        for (int i = 0; i < source.Length; i++)
         {
             values[i] = source[i].data.Value;
-            
+
         }
         return values;
     }
@@ -313,7 +326,7 @@ public static class Extensions
     public static NetworkHalf[] AttributeValuesFromClass(this List<ItemAttribute> source)
     {
         NetworkHalf[] values = new NetworkHalf[source.Count];
-        for(int i = 0; i < source.Count; i++)
+        for (int i = 0; i < source.Count; i++)
         {
             values[i] = new NetworkHalf();
             values[i] = source[i].value;
@@ -335,7 +348,7 @@ public static class Extensions
                 return Spell.SpellType.None;
             case 1:
                 return Spell.SpellType.Fireball;
-            case 2: 
+            case 2:
                 return Spell.SpellType.VoidFireball;
         }
     }
@@ -535,4 +548,64 @@ public static class Extensions
 
         return (ushort)(source | (1 << position));
     }
+
+    #region String Compression
+    /// This implementation is from Khalid Abuhakmeh at https://khalidabuhakmeh.com/compress-strings-with-dotnet-and-csharp
+    private static async Task<CompressionResult> ToCompressedStringAsync(
+        string value,
+        CompressionLevel level,
+        string algorithm,
+        Func<Stream, Stream> createCompressionStream)
+    {
+        var bytes = Encoding.Unicode.GetBytes(value);
+        await using var input = new MemoryStream(bytes);
+        await using var output = new MemoryStream();
+        await using var stream = createCompressionStream(output);
+
+        await input.CopyToAsync(stream);
+        await stream.FlushAsync();
+
+        var result = output.ToArray();
+
+        return new CompressionResult(
+            new(value, bytes.Length),
+            new(Convert.ToBase64String(result), result.Length),
+            level,
+            algorithm);
+    }
+    public static async Task<CompressionResult> ToBrotliAsync(this string value, CompressionLevel level = CompressionLevel.Fastest)
+            => await ToCompressedStringAsync(value, level, "Brotli", s => new BrotliStream(s, level));
+    private static async Task<string> FromCompressedStringAsync(string value, Func<Stream, Stream> createDecompressionStream)
+    {
+        var bytes = Convert.FromBase64String(value);
+        await using var input = new MemoryStream(bytes);
+        await using var output = new MemoryStream();
+        await using var stream = createDecompressionStream(input);
+
+        await stream.CopyToAsync(output);
+        await output.FlushAsync();
+
+        return Encoding.Unicode.GetString(output.ToArray());
+    }
+    public static async Task<string> FromBrotliAsync(this string value)
+           => await FromCompressedStringAsync(value, s => new BrotliStream(s, CompressionMode.Decompress));
+    public record CompressionResult(
+        CompressionValue Original,
+        CompressionValue Result,
+        CompressionLevel Level,
+        string Kind
+    )
+    {
+        public int Difference =>
+            Original.Size - Result.Size;
+
+        public decimal Percent =>
+          Math.Abs(Difference / (decimal)Original.Size);
+    }
+
+    public record CompressionValue(
+        string Value,
+        int Size
+    );
+    #endregion
 }

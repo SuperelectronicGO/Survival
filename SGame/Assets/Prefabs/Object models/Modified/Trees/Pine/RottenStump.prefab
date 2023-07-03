@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 7314366735573972777}
   - component: {fileID: 7590575902458950758}
   - component: {fileID: -2248628380766247248}
+  - component: {fileID: -4289214665384051206}
   m_Layer: 0
   m_Name: RottenStump
   m_TagString: Untagged
@@ -113,9 +114,17 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7584255402818980474}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Size: {x: 1.0175781, y: 7.107453, z: 1.2348633}
   m_Center: {x: 0.0063476562, y: 3.4570034, z: -0.004638672}
 --- !u!114 &-2248628380766247248
@@ -130,3 +139,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  position:
+    x: 0
+    y: 0
+--- !u!114 &-4289214665384051206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7584255402818980474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6e1273f8fed2d140904b25789670ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  droppedItems: []
+  health:
+    m_InternalValue: 100
+  breakableBy: Axe
+  hitParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  deathParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  effectOffset: {x: 0, y: 0, z: 0}

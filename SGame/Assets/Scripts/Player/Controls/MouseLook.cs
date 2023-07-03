@@ -44,9 +44,10 @@ public class MouseLook : NetworkBehaviour
             rotation += (Vector3.up * mouseX);
             Quaternion rot = Quaternion.Euler(rotation);
             //Call the character input after assigning our rotation so things don't feel delayed
+            if (PlayerHandler.instance.KeyBlockers.Count != 0) return;
             movePlr.CharacterInput(rot);
 
-            }
+        }
             
            
         

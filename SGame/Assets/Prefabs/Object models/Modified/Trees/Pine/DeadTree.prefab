@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 2360362238556413437}
   - component: {fileID: 3754485796017031276}
   - component: {fileID: -2861269182544873090}
+  - component: {fileID: 2247498947199697711}
   m_Layer: 0
   m_Name: DeadTree
   m_TagString: Untagged
@@ -114,9 +115,17 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3170772880513015982}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Size: {x: 1.0452576, y: 28.988388, z: 1.1470642}
   m_Center: {x: 2.201065, y: 36.86744, z: -1.1457062}
 --- !u!114 &-2861269182544873090
@@ -131,6 +140,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  position:
+    x: 0
+    y: 0
+--- !u!114 &2247498947199697711
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3170772880513015982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6e1273f8fed2d140904b25789670ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  droppedItems: []
+  health:
+    m_InternalValue: 100
+  breakableBy: Axe
+  hitParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  deathParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  effectOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &4569789992365597556
 GameObject:
   m_ObjectHideFlags: 0
@@ -171,8 +204,16 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4569789992365597556}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Size: {x: 1, y: 23.27147, z: 1}
   m_Center: {x: 0, y: 11.135735, z: 0}

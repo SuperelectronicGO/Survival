@@ -43,8 +43,7 @@ public class SpellConstructor : NetworkBehaviour
                 //If server, add components
                 if (IsServer)
                 {
-                    gameObject.AddComponent<SphereCollider>();
-                    gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.fireballConstructor.colliderRadius;
+                    DelayColliderAddition(1);
                     gameObject.AddComponent<ServerFireballSpellLogic>();
                     gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
                     Rigidbody r = gameObject.AddComponent<Rigidbody>();
@@ -70,8 +69,7 @@ public class SpellConstructor : NetworkBehaviour
                 //If server, add components
                 if (IsServer)
                 {
-                    gameObject.AddComponent<SphereCollider>();
-                    gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.voidFireballConstructor.colliderRadius;
+                    DelayColliderAddition(2);
                     gameObject.AddComponent<ServerFireballSpellLogic>();
                     gameObject.GetComponent<ServerFireballSpellLogic>().spell = spell.Value;
                     Rigidbody r = gameObject.AddComponent<Rigidbody>();
@@ -100,5 +98,26 @@ public class SpellConstructor : NetworkBehaviour
         spell.Value = spellReference;
         ConstructSpell();
         
+    }
+    /// <summary>
+    /// Coroutine that delays the addition of colliders for a brief moment to prevent random collisions
+    /// </summary>
+    /// <param name="spellType">The type of spell to construct a collider for</param>
+    /// <returns>After creating the collider</returns>
+    private IEnumerator DelayColliderAddition(byte spellType)
+    {
+        yield return new WaitForSecondsRealtime(0.2f);
+        switch (spellType)
+        {
+            case 1:
+                gameObject.AddComponent<SphereCollider>();
+                gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.fireballConstructor.colliderRadius;
+                break;
+            case 2:
+                gameObject.AddComponent<SphereCollider>();
+                gameObject.GetComponent<SphereCollider>().radius = SpellAssets.instance.voidFireballConstructor.colliderRadius;
+                break;
+        }
+        yield break;
     }
 }

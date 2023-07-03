@@ -40,8 +40,17 @@ CapsuleCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3167711350336812652}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
+  serializedVersion: 2
   m_Radius: 1.0457453
   m_Height: 28.6
   m_Direction: 1
@@ -59,6 +68,7 @@ GameObject:
   - component: {fileID: 3040078084758649313}
   - component: {fileID: 793909823}
   - component: {fileID: -5364569586305047234}
+  - component: {fileID: -1393862006252189531}
   m_Layer: 0
   m_Name: MossyBirch
   m_TagString: Untagged
@@ -164,6 +174,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6de43a16fb5b7034eb3d9fdc26f2d8ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  position:
+    x: 0
+    y: 0
+--- !u!114 &-1393862006252189531
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3544467704521070644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6e1273f8fed2d140904b25789670ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  droppedItems: []
+  health:
+    m_InternalValue: 100
+  breakableBy: Axe
+  hitParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  deathParticle: {fileID: 2366868552019749761, guid: 7e38c52ff31fcf84c9f303212619bd8e,
+    type: 3}
+  effectOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &8014297184822715276
 GameObject:
   m_ObjectHideFlags: 0
@@ -204,8 +238,16 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8014297184822715276}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Size: {x: 1, y: 16.422703, z: 1.0000001}
   m_Center: {x: 0.000014239124, y: 7.7112427, z: -0.000002952656}

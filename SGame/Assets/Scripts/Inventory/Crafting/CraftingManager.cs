@@ -51,15 +51,12 @@ public class CraftingManager : MonoBehaviour
     public List<CraftingChangeModifier> currentModifiers;
     //If the player is using the search bar or not
     public bool isTyping;
-
-
-    //Blocker
-    private string searchbarBlocker = "Crafting search bar";
     // Start is called before the first frame update
     void Start()
     {
         validRecipes = recipes;
         currentModifiers = new List<CraftingChangeModifier>();
+        Debug.Log("Reminder to refactor crafting to not check search bar every frame");
     }
 
 
@@ -69,20 +66,20 @@ public class CraftingManager : MonoBehaviour
         
         if (searchBar.isFocused)
         {
-            if (PlayerHandler.instance.KeyBlockers.Contains(searchbarBlocker))
+            if (PlayerHandler.instance.KeyBlockers.Contains(this.gameObject))
             {
                 //Nothing
             }
             else
             {
-                PlayerHandler.instance.KeyBlockers.Add(searchbarBlocker);
+                PlayerHandler.instance.KeyBlockers.Add(this.gameObject);
             }
         }
         else
         {
-            if (PlayerHandler.instance.KeyBlockers.Contains(searchbarBlocker))
+            if (PlayerHandler.instance.KeyBlockers.Contains(this.gameObject))
             {
-                PlayerHandler.instance.KeyBlockers.Remove(searchbarBlocker);
+                PlayerHandler.instance.KeyBlockers.Remove(this.gameObject);
             }
             else
             {

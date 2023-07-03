@@ -82,6 +82,7 @@ public class PlayerNetwork : NetworkBehaviour
         playerObj.GetComponent<PlayerHandler>().inventory = inventory;
         playerObj.GetComponent<PlayerHandler>().buildingManager = buildingManager;
         playerObj.GetComponent<SpellManager>().setHotbarManager(hotbarManager);
+        playerObj.GetComponent<PlayerHandler>().hotbarManager = hotbarManager;
         crosshairManager.canvas = crosshairCanvas;
         crosshairManager.crosshair = mainCrosshairComponent;
         crosshairManager.secondaryCrosshairComponent = secondaryCrosshairComponent;

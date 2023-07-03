@@ -1401,15 +1401,15 @@ public class WorldGen : NetworkBehaviour
                                 Quaternion rotQuat = new Quaternion();
                                 if (selectedOb.alignNormals)
                                 {
-
-                                   // RaycastHit previewHit;
-                                   // if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
-                                   // {
-                                   //     spotNormal = previewHit.normal;
-                                   // }
-                                    Vector3 terrainNormal = tDatas[tileNumber].GetInterpolatedNormal(x / terrainHeightmapLength, y / terrainHeightmapLength) + new Vector3(0, Random.Range(0, 360), 0);
+                                    Vector3 spotNormal = new Vector3();
+                                    RaycastHit previewHit;
+                                    if (Physics.Raycast(new Ray(new Vector3(spawnedPosition.x, spawnedPosition.y + 300, spawnedPosition.z), Vector3.down), out previewHit, 1000f))
+                                    {
+                                        spotNormal = previewHit.normal;
+                                    }
+                                    //Vector3 terrainNormal = tDatas[tileNumber].GetInterpolatedNormal(x / terrainHeightmapLength, y / terrainHeightmapLength) + new Vector3(0, Random.Range(0, 360), 0);
                                     
-                                    rotQuat = Quaternion.Euler(terrainNormal);
+                                    rotQuat = Quaternion.Euler(spotNormal);
                                     
                                 }
                                 rotQuat = rotQuat * Quaternion.Euler(0, Random.Range(0, 360), 0);

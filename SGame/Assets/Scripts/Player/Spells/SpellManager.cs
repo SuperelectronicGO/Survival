@@ -129,7 +129,7 @@ public class SpellManager : NetworkBehaviour
                 FireballSpellLogic spellLogicReference = g.GetComponent<FireballSpellLogic>();
                 spellLogicReference.spell = spell;
                 spellLogicReference.timeBeforeCast = spell.getAttributeValue(SpellAttribute.AttributeType.summonTime);
-                spellLogicReference.SetItemBlocker("Fireball");
+                spellLogicReference.SetItemBlocker();
                 //If the activation index was one of the three keys tied to runes, set the rune slot as the active player slot so we don't use tools as well
                 player.SetActiveSlot(RuneManager.instance.GetSpellSlot(spell.spellActivationIndex));
                 //Deselect all hotbar slots

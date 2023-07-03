@@ -12,7 +12,7 @@ public class CustomObjectFiltering : NetworkBehaviour
     //Active tile list of objects
     private List<HashSet<GameObject>> activeTiles = new List<HashSet<GameObject>>();
     //Max distance objects can be before they are disabled
-    [SerializeField] private int maxObjectDistance = 500;
+    [SerializeField] private int maxObjectDistance = 750;
     //Dictionary holding the terrains and their positions
     public Dictionary<float2, TileObjectList> terrainPositionList = new Dictionary<float2, TileObjectList>();
     //Static instance of the pooler to be referenced
@@ -32,20 +32,25 @@ public class CustomObjectFiltering : NetworkBehaviour
         {
             for (int i = 0; i < activeTiles.Count; i++)
             {
-                FilterObjects(activeTiles[i]);
-                yield return new WaitForSecondsRealtime(0.5f);
+                StartCoroutine(FilterObjects(activeTiles[i]));
+                yield return new WaitForSecondsRealtime(0.1f);
             }
-            yield return new WaitForSecondsRealtime(2);
+            yield return new WaitForSecondsRealtime(0.7f);
         }
     }
     /// <summary>
     /// Enables/Disables objects for a tile depending on their distance from the player
     /// </summary>
     /// <param name="objectList">The hash set containing the objects</param>
-    public void FilterObjects(HashSet<GameObject> objectList)
+    private IEnumerator FilterObjects(HashSet<GameObject> objectList)
     {
+        short num = 0;
         foreach (GameObject g in objectList)
         {
+            if (num % 50 == 0)
+            {
+                yield return new WaitForSeconds(0.1f);
+            }
             if (Vector2.Distance(new Vector2(activePlayer.position.x, activePlayer.position.z), new Vector2(g.transform.position.x, g.transform.position.z)) < maxObjectDistance)
             {
                 g.SetActive(true);
@@ -54,7 +59,9 @@ public class CustomObjectFiltering : NetworkBehaviour
             {
                 g.SetActive(false);
             }
+            num += 1;
         }
+        yield break;
     }
     /// <summary>
     /// Method that sets all the objects in a hash set inactive

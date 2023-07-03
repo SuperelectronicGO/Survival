@@ -34,9 +34,9 @@ public class PlayerHandler : NetworkBehaviour
     public HotbarManager hotbarManager;
 
     //Action blockers
-    [HideInInspector] public List<string> mouseBlockers = new List<string>();
-    [HideInInspector] public List<string> KeyBlockers = new List<string>();
-    [HideInInspector] public List<string> itemBlockers = new List<string>();
+    [HideInInspector] public List<GameObject> mouseBlockers = new List<GameObject>();
+    [HideInInspector] public List<GameObject> KeyBlockers = new List<GameObject>();
+    [HideInInspector] public List<GameObject> itemBlockers = new List<GameObject>();
     public bool ableToMouseLook = true;
     public bool ableToKey = true;
     public bool ableToItem = true;
