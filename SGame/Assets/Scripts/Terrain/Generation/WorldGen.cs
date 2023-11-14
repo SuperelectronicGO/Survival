@@ -565,7 +565,7 @@ public class WorldGen : NetworkBehaviour
             }
             if (weight > 1)
             {
-                Debug.LogError("FUCK!");
+                Debug.LogError("Invalid");
 
             }
             //Run check if we are in the correct subbiome
